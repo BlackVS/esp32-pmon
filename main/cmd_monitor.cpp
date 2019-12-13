@@ -270,15 +270,14 @@ static esp_err_t pmon_stop(pmon_runtime_t *pmon)
         return ESP_OK; //pass OK due to it is not critical
     }
 
+    WiFi.set_event_handler(NULL); //to avoid recursive calls
     WiFi.set_mode(WiFi_MODE_NONE);
-
     pmon->is_running = false; //trigger to stop
     //wait until finished
     xSemaphoreTake(pmon->sem_task_over, portMAX_DELAY);
     vSemaphoreDelete(pmon->sem_task_over);
     pmon->sem_task_over = NULL;
     pmon->task=NULL;
-    WiFi.set_event_handler(NULL);
     ssd1306_clearScreen();
     ESP_LOGD(__FUNCTION__, "Stopped OK.");
     return ESP_OK;
@@ -296,7 +295,7 @@ void pmon_events_callback(WiFi_EVENT ev, uint32_t arg)
         if(_pmon_rt.is_running && mode!=WiFi_MODE_PROMISCUOUS)
         {
             ESP_LOGD(__FUNCTION__, "Event: gracefully shutdown");
-            //gracefully shutdown
+            //gracefully shutdown if mode changed externally
             pmon_stop(&_pmon_rt);
         }
     }

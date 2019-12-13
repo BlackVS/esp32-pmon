@@ -5,6 +5,24 @@ static const char *TAG = __FILE__;
 static wifi_ap_record_t _wifi_ap_info[DEFAULT_SCAN_LIST_SIZE];
 static uint16_t _wifi_ap_number = 0;
 
+const char* WIFI_AUTH_MODE_STR[WIFI_AUTH_MAX] = {
+          "WIFI_AUTH_OPEN",
+          "WIFI_AUTH_WEP",
+          "WIFI_AUTH_WPA_PSK",
+          "WIFI_AUTH_WPA2_PSK",
+          "WIFI_AUTH_WPA_WPA2_PSK",
+          "WIFI_AUTH_WPA2_ENTERPRISE"
+};
+
+const char* WIFI_CIPHER_TYPE_STR[WIFI_CIPHER_TYPE_UNKNOWN] = {
+        "WIFI_CIPHER_TYPE_NONE",
+        "WIFI_CIPHER_TYPE_WEP40",
+        "WIFI_CIPHER_TYPE_WEP104",
+        "WIFI_CIPHER_TYPE_TKIP",
+        "WIFI_CIPHER_TYPE_CCMP",
+        "WIFI_CIPHER_TYPE_TKIP_CCMP"
+};
+
 static const char * WiFi_MODE_STR[WiFi_MODE_MAX] = {
   "None",
   "STA",
@@ -13,82 +31,18 @@ static const char * WiFi_MODE_STR[WiFi_MODE_MAX] = {
   "PROMISCUOUS"
 };
 
-static void print_auth_mode(int authmode)
+const char* CWiFi::authmode2str(wifi_auth_mode_t authmode)
 {
-    switch (authmode) {
-    case WIFI_AUTH_OPEN:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_OPEN");
-        break;
-    case WIFI_AUTH_WEP:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_WEP");
-        break;
-    case WIFI_AUTH_WPA_PSK:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_WPA_PSK");
-        break;
-    case WIFI_AUTH_WPA2_PSK:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_WPA2_PSK");
-        break;
-    case WIFI_AUTH_WPA_WPA2_PSK:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_WPA_WPA2_PSK");
-        break;
-    case WIFI_AUTH_WPA2_ENTERPRISE:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_WPA2_ENTERPRISE");
-        break;
-    default:
-        ESP_LOGI(TAG, "Authmode \tWIFI_AUTH_UNKNOWN");
-        break;
-    }
+    if(authmode<WIFI_AUTH_MAX)
+      return WIFI_AUTH_MODE_STR[authmode];
+    return "WIFI_AUTH_UNKNOWN";
 }
 
-static void print_cipher_type(int pairwise_cipher, int group_cipher)
+const char* CWiFi::cipher2str(wifi_cipher_type_t cipher)
 {
-    switch (pairwise_cipher) {
-    case WIFI_CIPHER_TYPE_NONE:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_NONE");
-        break;
-    case WIFI_CIPHER_TYPE_WEP40:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_WEP40");
-        break;
-    case WIFI_CIPHER_TYPE_WEP104:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_WEP104");
-        break;
-    case WIFI_CIPHER_TYPE_TKIP:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_TKIP");
-        break;
-    case WIFI_CIPHER_TYPE_CCMP:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_CCMP");
-        break;
-    case WIFI_CIPHER_TYPE_TKIP_CCMP:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_TKIP_CCMP");
-        break;
-    default:
-        ESP_LOGI(TAG, "Pairwise Cipher \tWIFI_CIPHER_TYPE_UNKNOWN");
-        break;
-    }
-
-    switch (group_cipher) {
-    case WIFI_CIPHER_TYPE_NONE:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_NONE");
-        break;
-    case WIFI_CIPHER_TYPE_WEP40:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_WEP40");
-        break;
-    case WIFI_CIPHER_TYPE_WEP104:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_WEP104");
-        break;
-    case WIFI_CIPHER_TYPE_TKIP:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_TKIP");
-        break;
-    case WIFI_CIPHER_TYPE_CCMP:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_CCMP");
-        break;
-    case WIFI_CIPHER_TYPE_TKIP_CCMP:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_TKIP_CCMP");
-        break;
-    default:
-        ESP_LOGI(TAG, "Group Cipher \tWIFI_CIPHER_TYPE_UNKNOWN");
-        break;
-    }
+  if(cipher<WIFI_CIPHER_TYPE_UNKNOWN)
+    return WIFI_CIPHER_TYPE_STR[cipher];
+  return "WIFI_CIPHER_TYPE_UNKNOWN";
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +230,7 @@ void CWiFi::set_promiscuous_callback(WiFi_PROMISCUOUS_CALLBACK callback)
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-void CWiFi::scan_APs(void)
+uint32_t CWiFi::scan_APs(void)
 {
     set_mode(WiFi_MODE_STA);
 
@@ -291,21 +245,22 @@ void CWiFi::scan_APs(void)
     memset(_wifi_ap_info, 0, sizeof(_wifi_ap_info));
     ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, true));
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifi_ap_number, _wifi_ap_info));
-    ESP_LOGI(TAG, "Total APs scanned = %u", _wifi_ap_number);
-    for (int i = 0; i < _wifi_ap_number; i++) 
-    {
-      ESP_LOGI(TAG, "SSID \t\t%s", _wifi_ap_info[i].ssid);
-      ESP_LOGI(TAG, "MAC  \t\t%02x:%02x:%02x:%02x:%02x:%02x", 
-        _wifi_ap_info[i].bssid[0], _wifi_ap_info[i].bssid[1], _wifi_ap_info[i].bssid[2],
-        _wifi_ap_info[i].bssid[3], _wifi_ap_info[i].bssid[4], _wifi_ap_info[i].bssid[5]);
-      ESP_LOGI(TAG, "RSSI \t\t%d", _wifi_ap_info[i].rssi);
+    ESP_LOGD(TAG, "Total APs scanned = %u", _wifi_ap_number);
+    // for (int i = 0; i < _wifi_ap_number; i++) 
+    // {
+    //   ESP_LOGI(TAG, "SSID \t\t%s", _wifi_ap_info[i].ssid);
+    //   ESP_LOGI(TAG, "MAC  \t\t%02x:%02x:%02x:%02x:%02x:%02x", 
+    //     _wifi_ap_info[i].bssid[0], _wifi_ap_info[i].bssid[1], _wifi_ap_info[i].bssid[2],
+    //     _wifi_ap_info[i].bssid[3], _wifi_ap_info[i].bssid[4], _wifi_ap_info[i].bssid[5]);
+    //   ESP_LOGI(TAG, "RSSI \t\t%d", _wifi_ap_info[i].rssi);
       
-      print_auth_mode(_wifi_ap_info[i].authmode);
-      if (_wifi_ap_info[i].authmode != WIFI_AUTH_WEP) {
-          print_cipher_type(_wifi_ap_info[i].pairwise_cipher, _wifi_ap_info[i].group_cipher);
-      }
-      ESP_LOGI(TAG, "Channel \t\t%d\n", _wifi_ap_info[i].primary);
-    }
+    //   print_auth_mode(_wifi_ap_info[i].authmode);
+    //   if (_wifi_ap_info[i].authmode != WIFI_AUTH_WEP) {
+    //       print_cipher_type(_wifi_ap_info[i].pairwise_cipher, _wifi_ap_info[i].group_cipher);
+    //   }
+    //   ESP_LOGI(TAG, "Channel \t\t%d\n", _wifi_ap_info[i].primary);
+    // }
+    return _wifi_ap_number;
 }
 
 
@@ -323,4 +278,18 @@ void CWiFi::set_event_handler(WiFi_EVENTS_CALLBACK cb)
   _events_cb=cb;
   if(_events_cb!=NULL)
     _events_cb(WiFi_EVENT_SUBSCRIBED, 0);
+}
+
+
+int CWiFi::scan_APs_get_count(void)
+{
+  return _wifi_ap_number;
+}
+
+bool CWiFi::scan_APs_get_data(uint32_t idx, wifi_ap_record_t& ap)
+{
+  if(idx>=_wifi_ap_number)
+    return false;
+  ap=_wifi_ap_info[idx];
+  return true;
 }

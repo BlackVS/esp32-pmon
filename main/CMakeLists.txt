@@ -2,6 +2,7 @@ idf_component_register(SRCS
                             app.cpp 
                             gpio.cpp 
                             leds.cpp 
+                            leds_alarm.cpp 
                             nvs.cpp 
                             ws2812_control.cpp
                             btn.cpp

@@ -28,6 +28,56 @@ typedef enum {
     WiFi_MODE_MAX
 } WiFi_MODES;
 
+typedef struct
+{
+		uint16_t protocol:2;
+		uint16_t type:2;
+		uint16_t subtype:4;
+		uint16_t to_ds:1;
+		uint16_t from_ds:1;
+		uint16_t more_frag:1;
+		uint16_t retry:1;
+		uint16_t pwr_mgmt:1;
+		uint16_t more_data:1;
+		uint16_t wep:1;
+		uint16_t strict:1;
+} wifi_header_frame_control_t;
+
+typedef enum
+{
+		WiFi_MGMT_ASSOCIATION_REQ,
+		WiFi_MGMT_ASSOCIATION_RES,
+		WiFi_MGMT_REASSOCIATION_REQ,
+		WiFi_MGMT_REASSOCIATION_RES,
+		WiFi_MGMT_PROBE_REQ,
+		WiFi_MGMT_PROBE_RES,
+		WiFi_MGMT_NU1,	/* ......................*/
+		WiFi_MGMT_NU2,	/* 0110, 0111 not used */
+		WiFi_MGMT_BEACON,
+		WiFi_MGMT_ATIM,
+		WiFi_MGMT_DISASSOCIATION,
+		WiFi_MGMT_AUTHENTICATION,
+		WiFi_MGMT_DEAUTHENTICATION,
+		WiFi_MGMT_ACTION,
+		WiFi_MGMT_ACTION_NACK,
+} wifi_mgmt_subtypes_t;
+
+typedef struct {
+	//uint16_t frame_ctrl;
+    wifi_header_frame_control_t frame_ctrl;
+	uint16_t duration_id;
+	uint8_t mac_to[6]; /* receiver address */
+	uint8_t mac_from[6]; /* sender address */
+	uint8_t mac_mask[6]; /* filtering address */
+	uint16_t sequence_ctrl;
+	uint8_t addr4[6]; /* optional */
+} wifi_ieee80211_mac_hdr_t;
+
+typedef struct {
+	wifi_ieee80211_mac_hdr_t hdr;
+	uint8_t payload[0]; /* network data ended with 4 bytes csum (CRC32) */
+} wifi_ieee80211_packet_t;
+
 class CWiFi{
     WiFi_MODES mode;
     wifi_country_t wf_country;
@@ -53,8 +103,14 @@ public:
 
     void set_promiscuous_callback(WiFi_PROMISCUOUS_CALLBACK callback);
 
-    void scan_APs(void);
+    uint32_t scan_APs(void); //return a number of found APs
+    int  scan_APs_get_count(void);
+    bool scan_APs_get_data(uint32_t idx, wifi_ap_record_t& ap);
 
+public:
+    //static tools
+    static const char* authmode2str(wifi_auth_mode_t authmode);
+    static const char* cipher2str(wifi_cipher_type_t cipher);
 protected:
 } WiFi;
 
