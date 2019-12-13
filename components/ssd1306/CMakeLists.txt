@@ -1,0 +1,5 @@
+idf_component_register(SRCS ./src/ssd1306_menu.c ./src/ssd1306_fonts.c ./src/ssd1306_1bit.c ./src/ssd1306_generic.c ./src/ssd1306_8bit.c ./src/ssd1306_uart.c ./src/ssd1306_16bit.c ./src/ssd1306_hal/esp/platform.c ./src/intf/ssd1306_interface.c ./src/intf/i2c/ssd1306_i2c.c ./src/intf/i2c/ssd1306_i2c_twi.c ./src/intf/i2c/ssd1306_i2c_embedded.c ./src/intf/spi/ssd1306_spi_avr.c ./src/intf/spi/ssd1306_spi_usi.c ./src/intf/spi/ssd1306_spi.c ./src/lcd/oled_sh1106.c ./src/lcd/oled_ssd1351.c ./src/lcd/vga_monitor.c ./src/lcd/oled_template.c ./src/lcd/oled_ssd1306.c ./src/lcd/lcd_common.c ./src/lcd/lcd_il9163.c ./src/lcd/lcd_ili9341.c ./src/lcd/oled_ssd1325.c ./src/lcd/oled_ssd1331.c ./src/lcd/composite_video.c ./src/lcd/lcd_pcd8544.c ./src/ssd1306_console.cpp ./src/sprite_pool.cpp ./src/nano_gfx.cpp ./src/nano_engine/canvas.cpp ./src/nano_engine/core.cpp
+                       INCLUDE_DIRS ./src                       # Edit following two lines to set component requirements (see docs)
+                       REQUIRES 
+                       PRIV_REQUIRES )
+

@@ -1,0 +1,7 @@
+set(COMPONENT_SRCS "app.cpp")
+set(COMPONENT_ADD_INCLUDEDIRS ".")
+
+# Embed the server root certificate into the final binary
+# set(COMPONENT_EMBED_TXTFILES ${PROJECT_PATH}/server.pem)
+
+register_component()
