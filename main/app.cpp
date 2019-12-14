@@ -48,8 +48,8 @@ void app_main()
   console_init();
 
 //  esp_log_level_set("*", ESP_LOG_NONE);
-  esp_log_level_set("*", ESP_LOG_DEBUG);
-//  esp_log_level_set("*", ESP_LOG_WARN);
+//esp_log_level_set("*", ESP_LOG_DEBUG);
+  esp_log_level_set("*", ESP_LOG_WARN);
   
 
   printf(LOG_COLOR_W
@@ -90,6 +90,8 @@ void app_main()
   xTaskCreate(&leds_alarm_task, "LEDS Alarm", 1024 * 4, NULL, 5, NULL);
 
   oled_draw_logo();
+//  printf("Size of wifi_target_t=%i\n", sizeof(wifi_target_t));
+//  printf("Size of mac_t=%i\n", sizeof(mac_t));
   console_task("pmon -c 7 --start");
   //console_task();
 }

@@ -31,18 +31,30 @@ static const char * WiFi_MODE_STR[WiFi_MODE_MAX] = {
   "PROMISCUOUS"
 };
 
-const char* CWiFi::authmode2str(wifi_auth_mode_t authmode)
+const char* authmode2str(wifi_auth_mode_t authmode)
 {
     if(authmode<WIFI_AUTH_MAX)
       return WIFI_AUTH_MODE_STR[authmode];
     return "WIFI_AUTH_UNKNOWN";
 }
 
-const char* CWiFi::cipher2str(wifi_cipher_type_t cipher)
+const char* cipher2str(wifi_cipher_type_t cipher)
 {
   if(cipher<WIFI_CIPHER_TYPE_UNKNOWN)
     return WIFI_CIPHER_TYPE_STR[cipher];
   return "WIFI_CIPHER_TYPE_UNKNOWN";
+}
+
+std::string mac2str(mac_t mac)
+{
+  char buf[32]={0};
+  mac2str_n(buf,sizeof(buf)-1,mac);
+  return buf;
+}
+
+uint32_t mac2str_n(char* buf, uint32_t bufsize, mac_t mac)
+{
+  return snprintf(buf, bufsize-1, "%02x:%02x:%02x:%02x:%02x:%02x", mac.addr[0], mac.addr[1], mac.addr[2], mac.addr[3], mac.addr[4], mac.addr[5]);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////

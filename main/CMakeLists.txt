@@ -10,6 +10,7 @@ idf_component_register(SRCS
                             oled.cpp
                             vfs.cpp
                             wifi.cpp
+                            targetss.cpp
                             cmd_version.cpp 
                             cmd_monitor.cpp
                             cmd_deauth.cpp

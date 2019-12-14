@@ -7,8 +7,10 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #include <stdio.h>
-#include <string.h>
+//#include <string.h>
+#include <string>
 #include <stdlib.h>
+
 
 #include "log.h"
 #include "esp_system.h"
@@ -28,6 +30,7 @@
 #include "vfs.h"
 #include "console.h"
 #include "wifi.h"
+#include "targets.h"
 
 //tasks
 #include "btn.h"
