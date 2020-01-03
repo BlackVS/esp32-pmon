@@ -1,6 +1,5 @@
 #include "app.h"
 
-#include "nano_engine.h"
 
 static const char *TAG = __FILE__;
 
@@ -127,65 +126,54 @@ extern "C" void pmon_promiscuous_callback(void* buf, wifi_promiscuous_pkt_type_t
   //printf(".");
 }
 
-/// OLED
-NanoEngine<TILE_128x64_MONO> engine;
 
-void setup_oled_pmon()
-{
-    ssd1306_clearScreen();
-    engine.begin();
-    engine.setFrameRate( 1 );
-    engine.canvas.setMode(CANVAS_TEXT_WRAP);
-    engine.refresh();
-}
+
+
 
 void oled_draw()
 {
     //if (!engine.nextFrame()) 
     //    return;
-    engine.canvas.clear();
+    oled_clear();
 
-    char buf[16];
+    oled_print(0,0,"CH:");
+    oled_print(24, 0, WiFi.get_channel(), STYLE_BOLD);
+    //oled_printf(0,0,STYLE_BOLD, "CH: %i", WiFi.get_channel());
 
-    itoa(WiFi.get_channel(),buf,10);
-    engine.canvas.printFixed(0,  0, "CH:", STYLE_NORMAL);
-    engine.canvas.printFixed(24, 0, buf  , STYLE_BOLD);
+    oled_print(0,  56, "LV:");
+    oled_print(16, 56, _pmon_rt.pr_rssi_avg, STYLE_BOLD);
 
-    itoa(_pmon_rt.pr_rssi_avg,buf,10);
-    engine.canvas.printFixed(0,  56, "LV:", STYLE_NORMAL);
-    engine.canvas.printFixed(16, 56, buf  , STYLE_BOLD);
+    oled_print(96,  0, "P:");
+    oled_print(112, 0, _pmon_rt.pr_pckt_counter, STYLE_BOLD);
 
-    itoa(_pmon_rt.pr_pckt_counter,buf,10);
-    engine.canvas.printFixed(96,  0, "P:", STYLE_NORMAL);
-    engine.canvas.printFixed(112, 0, buf  , STYLE_BOLD);
+    oled_print(96,  56, "D:");
+    oled_print(112, 56, _pmon_rt.pr_deauths, STYLE_BOLD);
 
-    itoa(_pmon_rt.pr_deauths,buf,10);
-    engine.canvas.printFixed(96,  56, "D:", STYLE_NORMAL);
-    engine.canvas.printFixed(112, 56, buf  , STYLE_BOLD);
-
-    engine.canvas.drawHLine(0,9,127);
-    engine.canvas.drawHLine(0,53,127);
 
     uint32_t yt = 11;
     uint32_t yb = 51;
+    uint32_t yh = yb-yt+1;
+
+    oled_drawHLine(0, yt-2, 127);
+    oled_drawHLine(0, yb  , 127);
 
     uint32_t vmax=pmon_packets.get_max_pckt_counter();
-    itoa(vmax,buf,10);
-    engine.canvas.printFixed(58, 0, buf, STYLE_BOLD);
+    oled_print(58, 0, vmax, STYLE_BOLD);
 
     uint32_t vavg=pmon_packets.get_avg_pckt_counter();
-    itoa(vavg,buf,10);
-    engine.canvas.printFixed(58, 56, buf, STYLE_BOLD);
+    oled_print(58, 56, vavg, STYLE_BOLD);
 
     if(vmax>0){
         for(int i=0; i<pmon_packets.len(); i++ ){
             uint32_t v  = pmon_packets.get(i).pckt_counter;
-            uint32_t dy = (v*(yb-yt))/vmax;
-            engine.canvas.drawVLine(i, yb-dy, yb);
+            uint32_t dy = v;
+            if(vmax>yh)
+                dy=(v*yh)/vmax;
+            oled_drawVLine(i, yb-dy, yb);
             //printf("%i %i %i %i %i\n", i, v, dy, yb-dy, yb);
         }
     }
-    engine.display();
+    oled_refresh();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -208,8 +196,6 @@ extern "C" void pmon_task(void *pvParameters)
 
     uint32_t lastDrawTime=0;
     pmon_packets.clear();
-
-    setup_oled_pmon();
 
     while (pmon->is_running) 
     {
@@ -254,7 +240,7 @@ extern "C" void pmon_task(void *pvParameters)
 // click - change channel
 void pmon_tpad_onClick(TOUCHPAD_EVENT, int value)
 {
-    WiFi.set_channel( WiFi.get_channel()+1 );
+    WiFi.set_channel( WiFi.get_channel()+1, true );
     pmon_packets.clear();
 }
 
@@ -278,7 +264,8 @@ static esp_err_t pmon_stop(pmon_runtime_t *pmon)
     vSemaphoreDelete(pmon->sem_task_over);
     pmon->sem_task_over = NULL;
     pmon->task=NULL;
-    ssd1306_clearScreen();
+    //ssd1306_clearScreen();
+    oled_clear(true);
     ESP_LOGD(__FUNCTION__, "Stopped OK.");
     return ESP_OK;
 }

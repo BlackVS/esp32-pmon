@@ -6,6 +6,7 @@
 #define LED_GREEN 0xFF0000
 #define LED_RED 0x00FF00
 #define LED_BLUE 0x0000FF
+#define LED_YELLOW 0xFFFF00
 
 #define LED_RGB(r,g,b)  (uint32_t)(((uint32_t)g<<16)|((uint32_t)r<<8)|b);
 #define B(c)  ((c)&0xff)
@@ -17,7 +18,7 @@ void leds_task(void *pvParameters);
 void leds_alarm_task(void *pvParameters);
 
 ///
-void leds_alarm_set(bool v);
+void leds_alarm_set(bool v, uint32_t color=LED_RED, float fDim=0.4f);
 
 // should be called only once
 void leds_task_init(void);

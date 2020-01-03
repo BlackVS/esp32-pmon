@@ -5,6 +5,8 @@ static const char *TAG = __FILE__;
 static wifi_ap_record_t _wifi_ap_info[DEFAULT_SCAN_LIST_SIZE];
 static uint16_t _wifi_ap_number = 0;
 
+CWiFi WiFi;
+
 const char* WIFI_AUTH_MODE_STR[WIFI_AUTH_MAX] = {
           "WIFI_AUTH_OPEN",
           "WIFI_AUTH_WEP",

@@ -1,7 +1,7 @@
 #pragma once
 
 #define CONFIG_STORE_HISTORY 1
-#define CONFIG_JTAG_ENABLED
+//#define CONFIG_JTAG_ENABLED
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
@@ -10,6 +10,7 @@
 //#include <string.h>
 #include <string>
 #include <stdlib.h>
+#include <map>
 
 
 #include "log.h"

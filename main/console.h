@@ -15,6 +15,7 @@
 #include "cmd_monitor.h"
 #include "cmd_deauth.h"
 #include "cmd_scan.h"
+#include "cmd_targets.h"
 
 
 #define CONSOLE_HISTORY_PATH "/data/history.txt"

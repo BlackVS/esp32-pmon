@@ -1,7 +1,5 @@
 #pragma once
 
-#define PMON_DEFAULT_CHANNEL 1
-
 #define CONFIG_PMON_TASK_STACK_SIZE 1024*8
 #define CONFIG_PMON_TASK_PRIORITY 5
 

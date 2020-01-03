@@ -1,6 +1,5 @@
 #pragma once
 
-
 #define DEFAULT_SCAN_LIST_SIZE 100
 
 #include "oui.h"
@@ -183,8 +182,9 @@ public:
 
 public:
 protected:
-} WiFi;
+};
 
+extern CWiFi WiFi;
 
 //static tools
 const char* authmode2str(wifi_auth_mode_t authmode);

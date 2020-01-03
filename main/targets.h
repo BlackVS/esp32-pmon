@@ -10,7 +10,7 @@ typedef struct _wifi_target_struct {
     mac_t       mac;
     target_t    type;
     uint8_t     channel;
-    char        desc[19]; // 19 due to make sizeof(struct)==32
+    char        desc[34]; // 33 - max BSSID len
 
     _wifi_target_struct(){
         //mac has own constructor
@@ -29,3 +29,9 @@ typedef struct _wifi_target_struct {
     }
 
 } wifi_target_t;
+
+extern std::map<uint64_t,wifi_target_t> targets;
+
+void targets_print(void);
+bool target_exists(mac_t mac);
+void target_add(mac_t mac, target_t type, uint8_t channel, const char* desc);

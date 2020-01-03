@@ -1,9 +1,6 @@
 #include "app.h"
-#include <map>
 
-static const char *TAG = "SCAN";
-
-std::map<uint64_t,wifi_target_t> _sniff_found_targets;
+//static const char *TAG = "SCAN";
 
 struct _scan_params_struct
 {
@@ -95,7 +92,26 @@ static void cmd_results(void)
             }
 
         }
-        printf("---------------------------------------------------------------------------------\n");
+
+        targets_print();
+}
+
+
+void aps2targets(void)
+{
+    uint32_t cnt = WiFi.scan_APs_get_count();
+    if(cnt==0)
+        return;
+    for(int i=0; i<cnt; i++)
+    {
+        wifi_ap_record_t ap;
+        if( WiFi.scan_APs_get_data(i, ap) )
+        {
+            mac_t mac(ap.bssid);
+            target_add(mac, TARGET_AP, ap.primary, (char*)ap.ssid);
+        }
+
+    }
 }
 
 
@@ -121,6 +137,8 @@ void dump(wifi_promiscuous_pkt_t* pr_pkt)
     }
     printf("\n");
 }
+
+
 ///////////////////////////////////////////////////////////////////////////////////
 //
 // https://blog.podkalicki.com/esp32-wifi-sniffer/
@@ -136,7 +154,7 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
     uint8_t p_type    = frame_ctrl->type;
     uint8_t p_subtype = frame_ctrl->subtype;
     uint32_t sig_length = ctrl.sig_len;
-    bool has_TA_RA = frame_ctrl->to_ds && frame_ctrl->from_ds;
+    //bool has_TA_RA = frame_ctrl->to_ds && frame_ctrl->from_ds;
 
     //uint8_t subtype = pr_pkt->payload[0];//buf[12]
     //ESP_LOGD(TAG,"%x %x %x %x\n",p_type,p_subtype,type,subtype);
@@ -190,29 +208,29 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
             dump(pr_pkt);
             dump(frame_ctrl);
         } 
-        uint64_t macint = mac_to.to_int();
+        //uint64_t macint = mac_to.to_int();
         
         if( !is_bad &&
             !mac_to.is_broadcast() &&
             !mac_to.is_multicast() &&
             mac_to.is_valid() &&
-            _sniff_found_targets.count(macint)==0 ) 
+            !target_exists(mac_to) ) 
         {
-            wifi_target_t t(mac_to, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
-            _sniff_found_targets[macint]=t;
+            //wifi_target_t t(mac_to, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
+            target_add(mac_to, TARGET_STATION, (uint8_t)ctrl.channel, NULL);
             //printf("\nFOUND : %s => [%s]  l=%i t=%i s=%i\n", mac2str(mac_from).c_str(), mac2str(mac_to).c_str(), sig_length, p_type, p_subtype);
             //dump(pr_pkt);
             //dump(frame_ctrl);
         }
-        macint = mac_from.to_int();
+        //macint = mac_from.to_int();
         if( !is_bad &&
             !mac_from.is_broadcast() &&
             !mac_from.is_multicast() &&
             mac_from.is_valid() &&
-            _sniff_found_targets.count(macint)==0 ) 
+            !target_exists(mac_from) ) 
         {
-            wifi_target_t t(mac_from, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
-            _sniff_found_targets[macint]=t;
+            //wifi_target_t t(mac_from, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
+            target_add(mac_from, TARGET_STATION, (uint8_t)ctrl.channel, NULL);
             //printf("\nFOUND : [%s] => %s  l=%i t=%i s=%i\n", mac2str(mac_from).c_str(), mac2str(mac_to).c_str(), sig_length, p_type, p_subtype);
             //dump(pr_pkt);
             //dump(frame_ctrl);
@@ -249,32 +267,52 @@ static snif_runtime_t _snif_rt;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
-//
-static esp_err_t scan_sniffer_stop(void)
+// do after stop actions - not call to stop sniffer. Use scan_snif_do_stop instead!
+static esp_err_t _scan_snif_stopped(bool bSilent=false)
 {
     ESP_LOGD(__FUNCTION__, "Stopping task");
     WiFi.set_mode(WiFi_MODE_NONE);
-    _snif_rt.is_running = false; //trigger to stop
-    size_t cnt=_sniff_found_targets.size();
-    printf("\nTargets (stations/APs) found: %i\n", cnt);
-    printf("------------------------------------------\n");
-    printf("       MAC             Channel  Type  Info\n");
-    printf("------------------------------------------\n");
-    if(cnt>0) {
-        for(auto& t:_sniff_found_targets){
-            wifi_target_t& d=t.second;
-            printf( "%s\t%2d\t%d\t%s\n", mac2str(d.mac).c_str(), d.channel, d.type, d.desc);
-        }
+
+    if(!bSilent)
+    {
+        targets_print();
+        oled_printf_refresh(0,32,STYLE_NORMAL,"Stations: %i", targets.size());
+        oled_print(0,40,"Sniffer stopped.",STYLE_NORMAL, true);
     }
-    printf("------------------------------------------\n");
     //WiFi.set_event_handler(NULL);
     ESP_LOGD(__FUNCTION__, "Stopped OK.");
     return ESP_OK;
 }
 
+
+void scan_snif_do_stop(void)
+{
+    _snif_rt.is_running = false; //trigger to stop
+    //wait until finished
+    xSemaphoreTake(_snif_rt.sem_task_over, portMAX_DELAY);
+    vSemaphoreDelete(_snif_rt.sem_task_over);
+    _snif_rt.sem_task_over = NULL;
+}
+
+void scan_events_callback(WiFi_EVENT ev, uint32_t arg)
+{
+    ESP_LOGD(__FUNCTION__, "Event: %i", ev);
+    if(ev==WiFi_EVENT_MODE_CHANGED){
+        ESP_LOGD(__FUNCTION__, "Event: WiFi_EVENT_MODE_CHANGED");
+        WiFi_MODES mode = (WiFi_MODES)arg;
+        if(_snif_rt.is_running && mode!=WiFi_MODE_PROMISCUOUS)
+        {
+            ESP_LOGD(__FUNCTION__, "Event: gracefully shutdown");
+            //gracefully shutdown if mode changed externally
+            scan_snif_do_stop(); 
+        }
+    }
+}
+
 extern "C" void scan_snif_task(void *pvParameters) 
 {
     ESP_LOGD(__FUNCTION__, "Starting...");
+    leds_alarm_set(true, LED_YELLOW, 0.7f);
     _snif_rt.starttime=_snif_rt.channel_starttime=millis();
     _snif_rt.is_running=true;
 
@@ -290,11 +328,15 @@ extern "C" void scan_snif_task(void *pvParameters)
             if(_scan_params.f_verbose)
                 printf("\nSniff channel %d: ",WiFi.get_channel());
             _snif_rt.channel_starttime=millis();
+            oled_printf_refresh(0,24,STYLE_NORMAL,"Channel: %i", WiFi.get_channel());
+
         }
         vTaskDelay(10);
     }
-    scan_sniffer_stop();
+    _scan_snif_stopped();
+    leds_alarm_set(false);
     ESP_LOGD(__FUNCTION__, "Left");
+    xSemaphoreGive(_snif_rt.sem_task_over);
     vTaskDelete(NULL); //self delete
 }
 
@@ -306,7 +348,7 @@ void scan_sniffer_start(void)
         return;
     }
 
-    _sniff_found_targets.clear();
+    //_sniff_found_targets.clear();
     WiFi.set_mode(WiFi_MODE_NONE);
 
     uint32_t duration=_scan_params.duration;
@@ -326,8 +368,11 @@ void scan_sniffer_start(void)
         _snif_rt.channel_auto=false;
          WiFi.set_channel(_scan_params.channel);
     }
+    oled_printf_refresh(0,24,STYLE_NORMAL,"Channel: %i", WiFi.get_channel());
     WiFi.set_promiscuous_callback(scan_sniffer_callback);
     WiFi.set_mode(WiFi_MODE_PROMISCUOUS);
+    WiFi.set_event_handler(scan_events_callback);
+    _snif_rt.sem_task_over = xSemaphoreCreateBinary();
 
     BaseType_t ret = xTaskCreate( scan_snif_task, 
                                  "Scan: sniffer", 
@@ -338,7 +383,7 @@ void scan_sniffer_start(void)
     if(ret != pdTRUE)
     {
         ESP_LOGD(__FUNCTION__, "FAILED to start!!!");
-        scan_sniffer_stop();
+        _scan_snif_stopped();
         return ;
     }
     ESP_LOGD(__FUNCTION__, "Started OK.");
@@ -388,15 +433,22 @@ static int do_scan_cmd(int argc, char **argv)
 
     ///////////////// start scan itself
     if(fAPs){
+        WiFi.set_mode(WiFi_MODE_NONE);//gracefully stop previous
+        oled_print(0,0,"Scanning APs...",STYLE_NORMAL, true);
         WiFi.scan_APs();
         uint32_t cnt = WiFi.scan_APs_get_count();
+        oled_printf(0,8,STYLE_NORMAL, "APs found : %i", cnt);
         if(cnt==0){
             printf("No APs found!\n");
-        } else
+        } else 
             cmd_results();
+        aps2targets();
     }
     if(fStations)
     {
+        WiFi.set_mode(WiFi_MODE_NONE);//gracefully stop previous
+        oled_print(0,16,"Sniffer starts...");
+        oled_refresh();
         scan_sniffer_start();
     }
     ESP_LOGD(__FUNCTION__, "Left.");

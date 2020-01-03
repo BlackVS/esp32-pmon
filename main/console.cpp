@@ -65,6 +65,7 @@ void register_cmds()
   register_cmd_monitor();
   register_cmd_deauth();
   register_cmd_scan();
+  register_cmd_targets();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
