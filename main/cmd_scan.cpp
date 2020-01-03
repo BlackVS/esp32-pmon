@@ -265,33 +265,15 @@ static snif_runtime_t _snif_rt;
 
 
 
-///////////////////////////////////////////////////////////////////////////////////
-//
-// do after stop actions - not call to stop sniffer. Use scan_snif_do_stop instead!
-static esp_err_t _scan_snif_stopped(bool bSilent=false)
-{
-    ESP_LOGD(__FUNCTION__, "Stopping task");
-    WiFi.set_mode(WiFi_MODE_NONE);
-
-    if(!bSilent)
-    {
-        targets_print();
-        oled_printf_refresh(0,32,STYLE_NORMAL,"Stations: %i", targets.size());
-        oled_print(0,40,"Sniffer stopped.",STYLE_NORMAL, true);
-    }
-    //WiFi.set_event_handler(NULL);
-    ESP_LOGD(__FUNCTION__, "Stopped OK.");
-    return ESP_OK;
-}
-
-
 void scan_snif_do_stop(void)
 {
+    ESP_LOGD(__FUNCTION__, "Do sniff stop");
     _snif_rt.is_running = false; //trigger to stop
     //wait until finished
     xSemaphoreTake(_snif_rt.sem_task_over, portMAX_DELAY);
     vSemaphoreDelete(_snif_rt.sem_task_over);
     _snif_rt.sem_task_over = NULL;
+    ESP_LOGD(__FUNCTION__, "OK.");
 }
 
 void scan_events_callback(WiFi_EVENT ev, uint32_t arg)
@@ -333,10 +315,16 @@ extern "C" void scan_snif_task(void *pvParameters)
         }
         vTaskDelay(10);
     }
-    _scan_snif_stopped();
+
+    targets_print();
+    oled_printf_refresh(0,32,STYLE_NORMAL,"Stations: %i", targets.size());
+    oled_print(0,40,"Sniffer stopped.",STYLE_NORMAL, true);
     leds_alarm_set(false);
-    ESP_LOGD(__FUNCTION__, "Left");
+
+    _snif_rt.is_running=false; //to avoid waiting semaphore
+    WiFi.set_mode(WiFi_MODE_NONE); 
     xSemaphoreGive(_snif_rt.sem_task_over);
+    ESP_LOGD(__FUNCTION__, "Left");
     vTaskDelete(NULL); //self delete
 }
 
@@ -383,7 +371,6 @@ void scan_sniffer_start(void)
     if(ret != pdTRUE)
     {
         ESP_LOGD(__FUNCTION__, "FAILED to start!!!");
-        _scan_snif_stopped();
         return ;
     }
     ESP_LOGD(__FUNCTION__, "Started OK.");
