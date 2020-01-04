@@ -24,3 +24,5 @@
 void console_task(const char *startcmd=NULL);
 
 void console_init(void);
+
+extern CTaskPool pool_wifi_tasks;

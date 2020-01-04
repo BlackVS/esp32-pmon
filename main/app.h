@@ -8,8 +8,10 @@
 
 #include <stdio.h>
 //#include <string.h>
+#include <cstring>
 #include <string>
 #include <stdlib.h>
+#include <vector>
 #include <map>
 
 
@@ -29,6 +31,7 @@
 
 #include "nvs.h"
 #include "vfs.h"
+#include "task.h"
 #include "console.h"
 #include "wifi.h"
 #include "targets.h"

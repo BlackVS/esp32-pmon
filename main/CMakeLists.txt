@@ -16,7 +16,8 @@ idf_component_register(SRCS
                             cmd_monitor.cpp
                             cmd_deauth.cpp
                             cmd_scan.cpp
-			    cmd_targets.cpp
+                            cmd_targets.cpp
+                            task.cpp
                         INCLUDE_DIRS 
                             "."
                     )

@@ -5,34 +5,7 @@ static const char *TAG = __FILE__;
 
 static int _death_alarm_thresh=10;
 
-typedef struct _pmon_runtime_struct {
-    uint32_t magic;
-    bool is_running;
-    //// args
-    bool     verbose;
-    //// shared runtime data
-    int32_t  pr_deauths;       // deauth frames per second
-    int32_t  pr_pckt_counter;
-    int32_t  pr_rssi_sum;
-    int32_t  pr_rssi_avg;
-    //// task 
-    TaskHandle_t task;
-    SemaphoreHandle_t sem_task_over;
-
-    _pmon_runtime_struct():
-        pr_deauths(0), 
-        pr_pckt_counter(0),
-        pr_rssi_sum(0),
-        pr_rssi_avg(0)
-    {
-        magic=0XBEEFFEEB;
-        is_running=false;
-        verbose=true;
-
-    }
-} pmon_runtime_t;
-
-static pmon_runtime_t _pmon_rt;
+CMonitorTask monitor("Monitor", 8192, 5, &pool_wifi_tasks);
 
 static struct {
     struct arg_lit *verbose;
@@ -112,15 +85,15 @@ extern "C" void pmon_promiscuous_callback(void* buf, wifi_promiscuous_pkt_type_t
   wifi_pkt_rx_ctrl_t ctrl = (wifi_pkt_rx_ctrl_t)pkt->rx_ctrl;
 
   if (type == WIFI_PKT_MGMT && (pkt->payload[0] == 0xA0 || pkt->payload[0] == 0xC0 )) 
-    _pmon_rt.pr_deauths++;
+    monitor.pr_deauths++;
 
   if (type == WIFI_PKT_MISC) 
     return;             // wrong packet type
   
-  _pmon_rt.pr_pckt_counter++;
-  _pmon_rt.pr_rssi_sum += ctrl.rssi;
-  if(_pmon_rt.pr_pckt_counter){
-      _pmon_rt.pr_rssi_avg=_pmon_rt.pr_rssi_sum/_pmon_rt.pr_pckt_counter;
+  monitor.pr_pckt_counter++;
+  monitor.pr_rssi_sum += ctrl.rssi;
+  if(monitor.pr_pckt_counter){
+      monitor.pr_rssi_avg=monitor.pr_rssi_sum/monitor.pr_pckt_counter;
   }
 
   //printf(".");
@@ -141,13 +114,13 @@ void oled_draw()
     //oled_printf(0,0,STYLE_BOLD, "CH: %i", WiFi.get_channel());
 
     oled_print(0,  56, "LV:");
-    oled_print(16, 56, _pmon_rt.pr_rssi_avg, STYLE_BOLD);
+    oled_print(16, 56, monitor.pr_rssi_avg, STYLE_BOLD);
 
     oled_print(96,  0, "P:");
-    oled_print(112, 0, _pmon_rt.pr_pckt_counter, STYLE_BOLD);
+    oled_print(112, 0, monitor.pr_pckt_counter, STYLE_BOLD);
 
     oled_print(96,  56, "D:");
-    oled_print(112, 56, _pmon_rt.pr_deauths, STYLE_BOLD);
+    oled_print(112, 56, monitor.pr_deauths, STYLE_BOLD);
 
 
     uint32_t yt = 11;
@@ -176,158 +149,12 @@ void oled_draw()
     oled_refresh();
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-//
-//
-extern "C" void pmon_task(void *pvParameters) 
-{
-    ESP_LOGD(__FUNCTION__, "Starting...");
-    if(pvParameters!=&_pmon_rt){
-        ESP_LOGE(TAG,"Failed to start pmon task - not  arg");
-        vTaskDelete(NULL);
-        return;
-    }
-    pmon_runtime_t *pmon = (pmon_runtime_t *)pvParameters;
-    if(!pmon){
-        ESP_LOGE(TAG,"Failed to start pmon task - invalid arg");
-        vTaskDelete(NULL);
-        return;
-    }
-
-    uint32_t lastDrawTime=0;
-    pmon_packets.clear();
-
-    while (pmon->is_running) 
-    {
-        
-        uint32_t currentTime = millis();
-        if ( currentTime - lastDrawTime > 1000 ) 
-        {
-            lastDrawTime = currentTime;
-            PMON_PACKET packet;
-            packet.pckt_counter=_pmon_rt.pr_pckt_counter;
-            packet.rssi_avg=_pmon_rt.pr_rssi_avg;
-            packet.pr_deauths=_pmon_rt.pr_deauths;
-            pmon_packets.add(packet);
-            //draw
-            if(pmon->verbose){
-                printf("Ch=%2i Pckts=%-8i rssi=%-8i deauths=%-8i\n", WiFi.get_channel(), _pmon_rt.pr_pckt_counter, _pmon_rt.pr_rssi_avg, _pmon_rt.pr_deauths);
-            }
-            //////////////////////////////
-            //OLED always
-            oled_draw();
-
-            //ALARM
-            leds_alarm_set(_pmon_rt.pr_deauths>_death_alarm_thresh);
-
-            ////// next round
-            pmon->pr_deauths = 0;       // deauth frames per second
-            pmon->pr_pckt_counter = 0;
-            pmon->pr_rssi_sum = 0;
-            lastDrawTime = currentTime;
-        }
-        //allow doing rest jobs
-        vTaskDelay(10);
-    }
-    
-    /* notify that sniffer task is over */
-    ESP_LOGD(__FUNCTION__, "Left");
-    xSemaphoreGive(pmon->sem_task_over);
-    vTaskDelete(NULL); //self delete
-}
-
-
 // click - change channel
 void pmon_tpad_onClick(TOUCHPAD_EVENT, int value)
 {
     WiFi.set_channel( WiFi.get_channel()+1, true );
     pmon_packets.clear();
 }
-
-
-///////////////////////////////////////////////////////////////////////////////////
-//
-//
-static esp_err_t pmon_stop(pmon_runtime_t *pmon)
-{
-    ESP_LOGD(__FUNCTION__, "Stopping task");
-    if(!pmon->is_running){
-        ESP_LOGW(TAG, "Packet monitor already stopped");
-        return ESP_OK; //pass OK due to it is not critical
-    }
-
-    WiFi.set_event_handler(NULL); //to avoid recursive calls
-    WiFi.set_mode(WiFi_MODE_NONE);
-    pmon->is_running = false; //trigger to stop
-    //wait until finished
-    xSemaphoreTake(pmon->sem_task_over, portMAX_DELAY);
-    vSemaphoreDelete(pmon->sem_task_over);
-    pmon->sem_task_over = NULL;
-    pmon->task=NULL;
-    //ssd1306_clearScreen();
-    oled_clear(true);
-    ESP_LOGD(__FUNCTION__, "Stopped OK.");
-    return ESP_OK;
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-//
-//
-void pmon_events_callback(WiFi_EVENT ev, uint32_t arg)
-{
-    ESP_LOGD(__FUNCTION__, "Event: %i", ev);
-    if(ev==WiFi_EVENT_MODE_CHANGED){
-        ESP_LOGD(__FUNCTION__, "Event: WiFi_EVENT_MODE_CHANGED");
-        WiFi_MODES mode = (WiFi_MODES)arg;
-        if(_pmon_rt.is_running && mode!=WiFi_MODE_PROMISCUOUS)
-        {
-            ESP_LOGD(__FUNCTION__, "Event: gracefully shutdown");
-            //gracefully shutdown if mode changed externally
-            pmon_stop(&_pmon_rt);
-        }
-    }
-}
-///////////////////////////////////////////////////////////////////////////////////
-//
-//
-static esp_err_t pmon_start(pmon_runtime_t *pmon)
-{
-    ESP_LOGD(__FUNCTION__, "Starting...");
-    if(pmon->is_running){
-        ESP_LOGW(TAG, "Packet monitor already started");
-        return ESP_OK; //pass OK due to it is not critical
-    }
-
-    WiFi.set_mode(WiFi_MODE_NONE);
-    WiFi.set_promiscuous_callback(pmon_promiscuous_callback);
-    WiFi.set_mode(WiFi_MODE_PROMISCUOUS);
-    WiFi.set_event_handler(pmon_events_callback);
-
-    pmon->sem_task_over = xSemaphoreCreateBinary();
-    BaseType_t ret = xTaskCreate( pmon_task, 
-                                 "pmonTask", 
-                                CONFIG_PMON_TASK_STACK_SIZE,
-                                pmon, 
-                                CONFIG_PMON_TASK_PRIORITY, 
-                                &pmon->task);
-    if(ret != pdTRUE)
-    {
-        ESP_LOGD(__FUNCTION__, "FAILED to start!!!");
-        WiFi.set_mode(WiFi_MODE_NONE);
-        pmon->task=NULL;
-        pmon->is_running = false;
-        return ESP_FAIL;
-    }
-
-    //touchpad_add_handler(TOUCHPAD_EVENT_CLICK, pmon_tpad_onClick);
-    touchpad_add_handler(TOUCHPAD_EVENT_DOWN, pmon_tpad_onClick);
-
-    pmon->is_running = true;
-    ESP_LOGD(__FUNCTION__, "Started OK.");
-    return ESP_OK;
-}
-
-
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -342,10 +169,10 @@ static int do_pmon_cmd(int argc, char **argv)
         return 0;
     }
 
-    bool bChangeOnTheFly = _pmon_rt.is_running && !_pmon_args.start->count && !_pmon_args.stop->count;
+    bool bChangeOnTheFly = monitor.is_running() && !_pmon_args.stop->count;
     // --stop 
     if (_pmon_args.stop->count) {
-        pmon_stop(&_pmon_rt);
+        monitor.stop(true);
         return 0;
     }
 
@@ -358,11 +185,11 @@ static int do_pmon_cmd(int argc, char **argv)
     }
 
     // --verbose
-    _pmon_rt.verbose = _pmon_args.verbose->count > 0;
+    monitor.f_verbose = _pmon_args.verbose->count > 0;
 
     // --start
     if (_pmon_args.start->count) {
-        pmon_start(&_pmon_rt);
+        monitor.start();
     }
     ESP_LOGD(__FUNCTION__, "Left.");
     return 0;
@@ -389,4 +216,61 @@ void register_cmd_monitor(void)
     ESP_ERROR_CHECK(esp_console_cmd_register(&pmon_cmd));
 
     ESP_LOGD(__FUNCTION__, "Started.");
+}
+
+
+esp_err_t CMonitorTask::starting(void) 
+{
+    lastDrawTime=0;
+    pmon_packets.clear();
+    return ESP_OK;
+}
+
+bool CMonitorTask::execute(void) 
+{
+    uint32_t currentTime = millis();
+    if ( currentTime - lastDrawTime > 1000 ) 
+    {
+        lastDrawTime = currentTime;
+        PMON_PACKET packet;
+        packet.pckt_counter=pr_pckt_counter;
+        packet.rssi_avg=pr_rssi_avg;
+        packet.pr_deauths=pr_deauths;
+        pmon_packets.add(packet);
+        //draw
+        if(f_verbose){
+            printf("Ch=%2i Pckts=%-8i rssi=%-8i deauths=%-8i\n", WiFi.get_channel(), pr_pckt_counter, pr_rssi_avg, pr_deauths);
+        }
+        //////////////////////////////
+        //OLED always
+        oled_draw();
+
+        //ALARM
+        leds_alarm_set(pr_deauths>_death_alarm_thresh);
+
+        ////// next round
+        pr_deauths = 0;       // deauth frames per second
+        pr_pckt_counter = 0;
+        pr_rssi_sum = 0;
+        lastDrawTime = currentTime;
+    }
+    return true;
+}
+
+esp_err_t CMonitorTask::finished(void) 
+{
+    WiFi.set_event_handler(NULL); //to avoid recursive calls
+    WiFi.set_mode(WiFi_MODE_NONE);
+    oled_clear(true);
+    return ESP_OK;    return ESP_OK;
+} 
+
+esp_err_t CMonitorTask::init(void) 
+{ 
+    WiFi.set_mode(WiFi_MODE_NONE);
+    WiFi.set_promiscuous_callback(pmon_promiscuous_callback);
+    WiFi.set_mode(WiFi_MODE_PROMISCUOUS);
+    //WiFi.set_event_handler(pmon_events_callback); - tasks maintained via pool
+    touchpad_add_handler(TOUCHPAD_EVENT_DOWN, pmon_tpad_onClick);
+    return ESP_OK;
 }

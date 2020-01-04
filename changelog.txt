@@ -1,3 +1,11 @@
 2019-12-08:
 * PoC: only console, supported commands - help, version, start, stop
 Monitors ALL packets + monitors deauths packets (for deauth attack monitoring in future)
+
+2020-01-02
+* OLED and LED support added
+
+2020-01-04
+* Bugfixes. Multitask model changed.
+
+

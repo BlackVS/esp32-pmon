@@ -1,0 +1,15 @@
+{
+    //https://higaski.at/vscode-esp32-debugging/
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "openocd Wroover Kit",
+        "type": "shell",
+        "isBackground": true,
+        "options": {
+          "cwd": "openocd"
+        },
+        "command": "openocd -f interface/ftdi/esp32_devkitj_v1.cfg -f board/esp-wroom-32.cfg",
+      }
+    ]
+  }
