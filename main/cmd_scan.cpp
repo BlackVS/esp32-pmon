@@ -87,7 +87,8 @@ void aps2targets(void)
         if( WiFi.scan_APs_get_data(i, ap) )
         {
             mac_t mac(ap.bssid);
-            target_add(mac, TARGET_AP, ap.primary, (char*)ap.ssid);
+            mac_t mac_link;
+            target_add(mac, TARGET_AP, ap.primary, (char*)ap.ssid, mac_link);
         }
 
     }
@@ -133,12 +134,6 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
     uint8_t p_type    = frame_ctrl->type;
     uint8_t p_subtype = frame_ctrl->subtype;
     uint32_t sig_length = ctrl.sig_len;
-    //bool has_TA_RA = frame_ctrl->to_ds && frame_ctrl->from_ds;
-
-    //uint8_t subtype = pr_pkt->payload[0];//buf[12]
-    //ESP_LOGD(TAG,"%x %x %x %x\n",p_type,p_subtype,type,subtype);
-    
-    //if (type == WIFI_PKT_MGMT && (subtype == 0xA0 || subtype == 0xC0 )) 
     if( type == WIFI_PKT_MGMT )
     {
         switch(p_subtype){
@@ -161,25 +156,13 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
                 return;
         }
     }
-    // only allow data frames
-    // if(buf[12] != 0x08 && buf[12] != 0x88) return;
-
-    //mac_t macTo1(&pr_pkt->payload[16-12]);
-    //mac_t macFrom1(&pr_pkt->payload[22-12]);
-
-
     mac_t mac_to   = packet->hdr.mac_to;
     mac_t mac_from = packet->hdr.mac_from;
 
-    //printf("From: %s To: %s   <=>   ", mac2str(macFrom1).c_str(), (char*)mac2str(macTo1).c_str() );
-    //printf("From: %s To: %s\n"       , mac2str(macFrom).c_str(),  (char*)mac2str(macTo).c_str()  );
-
     //snif radio's MACs
-    
     bool is_bad = ctrl.channel==0 || ctrl.rssi>0;
-    //if(has_TA_RA)
     {
-        if(is_bad){
+        if(is_bad&&sniffer.f_verbose){
             printf("\nBAD: %s => %s l=%i t=%i s=%i\n", 
                     mac2str(mac_from).c_str(), 
                     mac2str(mac_to).c_str(), 
@@ -187,7 +170,6 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
             dump(pr_pkt);
             dump(frame_ctrl);
         } 
-        //uint64_t macint = mac_to.to_int();
         
         if( !is_bad &&
             !mac_to.is_broadcast() &&
@@ -195,24 +177,29 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
             mac_to.is_valid() &&
             !target_exists(mac_to) ) 
         {
-            //wifi_target_t t(mac_to, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
-            target_add(mac_to, TARGET_STATION, (uint8_t)ctrl.channel, NULL);
-            //printf("\nFOUND : %s => [%s]  l=%i t=%i s=%i\n", mac2str(mac_from).c_str(), mac2str(mac_to).c_str(), sig_length, p_type, p_subtype);
-            //dump(pr_pkt);
-            //dump(frame_ctrl);
+            wifi_target_t t;
+            mac_t mac_link;
+            char * desc=NULL;
+            if(target_get(mac_from,t)) {
+                mac_link=t.mac;
+                desc=t.desc;
+            }
+            target_add(mac_to, TARGET_STATION, (uint8_t)ctrl.channel, desc, mac_link);
         }
-        //macint = mac_from.to_int();
         if( !is_bad &&
             !mac_from.is_broadcast() &&
             !mac_from.is_multicast() &&
             mac_from.is_valid() &&
             !target_exists(mac_from) ) 
         {
-            //wifi_target_t t(mac_from, TARGET_UNKNOWN, (uint8_t)ctrl.channel, NULL);
-            target_add(mac_from, TARGET_STATION, (uint8_t)ctrl.channel, NULL);
-            //printf("\nFOUND : [%s] => %s  l=%i t=%i s=%i\n", mac2str(mac_from).c_str(), mac2str(mac_to).c_str(), sig_length, p_type, p_subtype);
-            //dump(pr_pkt);
-            //dump(frame_ctrl);
+            wifi_target_t t;
+            mac_t mac_link;
+            char * desc=NULL;
+            if(target_get(mac_to,t)) {
+                mac_link=t.mac;
+                desc=t.desc;
+            }
+            target_add(mac_from, TARGET_STATION, (uint8_t)ctrl.channel, desc, mac_link);
         }
     }
 }

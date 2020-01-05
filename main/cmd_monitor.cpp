@@ -1,6 +1,7 @@
 #include "app.h"
 
 
+__attribute__ ((unused)) 
 static const char *TAG = __FILE__;
 
 static int _death_alarm_thresh=10;

@@ -140,13 +140,13 @@ void CWiFi::init(void)
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-void CWiFi::set_mode(WiFi_MODES m)
+esp_err_t CWiFi::set_mode(WiFi_MODES m, wifi_bandwidth_t bandwidth, wifi_config_t *cfg)
 {
   ESP_LOGD(__FUNCTION__, "Starting mode %s", WiFi_MODE_STR[m]);
   
   if(m==mode) {
     ESP_LOGD(__FUNCTION__, "Already in mode %s", WiFi_MODE_STR[m]);
-    return;
+    return ESP_ERR_INVALID_ARG;
   }
 
   if(m!=WiFi_MODE_NONE && mode!=WiFi_MODE_NONE && m!=mode) //change from active to active mode - first stop old
@@ -160,6 +160,15 @@ void CWiFi::set_mode(WiFi_MODES m)
 
   switch(m){
     case WiFi_MODE_AP:
+      if(cfg==NULL){
+        ESP_LOGE(TAG,"No config supplied!!!");
+        return ESP_ERR_INVALID_ARG;
+      }
+      ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+      ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, cfg));
+      ESP_ERROR_CHECK(esp_wifi_set_bandwidth(ESP_IF_WIFI_AP, bandwidth));
+      ESP_ERROR_CHECK(esp_wifi_start());
+      mode=m;
       break;
     case WiFi_MODE_STA:
       ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -204,6 +213,7 @@ void CWiFi::set_mode(WiFi_MODES m)
   
   
   ESP_LOGD(__FUNCTION__, "Started %s", WiFi_MODE_STR[mode]);
+  return ESP_OK;
 }
 
 
@@ -306,4 +316,11 @@ bool CWiFi::scan_APs_get_data(uint32_t idx, wifi_ap_record_t& ap)
     return false;
   ap=_wifi_ap_info[idx];
   return true;
+}
+
+mac_t CWiFi::get_mac(wifi_interface_t ifx)
+{
+  uint8_t mac[6];
+  esp_wifi_get_mac(ifx,mac);
+  return mac_t(mac);
 }

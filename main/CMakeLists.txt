@@ -14,7 +14,7 @@ idf_component_register(SRCS
                             targets.cpp
                             cmd_version.cpp 
                             cmd_monitor.cpp
-                            cmd_deauth.cpp
+                            cmd_tester.cpp
                             cmd_scan.cpp
                             cmd_targets.cpp
                             task.cpp

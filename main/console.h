@@ -13,7 +13,7 @@
 //#include "cmd_decl.h"
 #include "cmd_version.h"
 #include "cmd_monitor.h"
-#include "cmd_deauth.h"
+#include "cmd_tester.h"
 #include "cmd_scan.h"
 #include "cmd_targets.h"
 

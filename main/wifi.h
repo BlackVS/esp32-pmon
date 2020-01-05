@@ -163,7 +163,7 @@ public:
     void init(void);
 
     //mode
-    void set_mode(WiFi_MODES m);
+    esp_err_t set_mode(WiFi_MODES m, wifi_bandwidth_t bandwidth=WIFI_BW_HT40, wifi_config_t *cfg=NULL);
     WiFi_MODES get_mode(void);
     const char * mode2str(WiFi_MODES mode);
 
@@ -180,6 +180,7 @@ public:
     int  scan_APs_get_count(void);
     bool scan_APs_get_data(uint32_t idx, wifi_ap_record_t& ap);
 
+    mac_t get_mac(wifi_interface_t ifx=WIFI_IF_AP);
 public:
 protected:
 };

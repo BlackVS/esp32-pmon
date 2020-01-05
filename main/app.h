@@ -6,6 +6,9 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 #include <stdio.h>
 //#include <string.h>
 #include <cstring>
