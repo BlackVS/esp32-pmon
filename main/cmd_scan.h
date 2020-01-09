@@ -2,7 +2,7 @@
 
 void register_cmd_scan(void);
 
-class CSnifferTask: public CTask
+class CSnifferTask: public CTaskThread
 {
     public:
         uint32_t          duration;
@@ -18,7 +18,7 @@ class CSnifferTask: public CTask
 
     public:
         CSnifferTask(const char* title, uint32_t stack_size=1024*4, uint32_t task_prior=5, CTaskPool* task_pool = NULL) :
-            CTask(title, stack_size, task_prior, task_pool)
+            CTaskThread(title, stack_size, task_prior, task_pool)
             {
                 channel=0;
                 channel_auto=true;
@@ -32,8 +32,8 @@ class CSnifferTask: public CTask
 
         }
     protected:
+        //CTaskThread
         virtual esp_err_t init(void);
-        //
         virtual esp_err_t starting(void);
         virtual bool      execute(void);
         virtual esp_err_t finished(void);

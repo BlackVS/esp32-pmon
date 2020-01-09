@@ -1,6 +1,19 @@
 # Name,   Type, SubType, Offset,  Size, Flags
 # Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-nvs,      data, nvs,     0x9000,  0x6000,
-phy_init, data, phy,     ,        0x1000,
-factory,  app,  factory, ,        1M,
-storage,  data, fat,     ,        1M, 
+
+#nvs,      data, nvs,     0x9000,  0x6000,
+#phy_init, data, phy,     ,        0x1000,
+#factory,  app,  factory, ,        1M,
+#storage,  data, fat,     ,        1M, 
+
+nvs,       data, nvs,      0x9000,    0x4000
+otadata,   data, ota,      0xd000,    0x2000
+phy_init,  data, phy,      0xf000,    0x1000
+ota_0,     app,  ota_0,    0x10000,   0x180000
+ota_1,     app,  ota_1,    0x190000,  0x180000
+# 400 000 - 310 000 = f0 000
+#additinal storage in flash for data, max f0 000 - size(nvs_key) - size(nnc_data)
+storage,   data, fat,      ,          0x20000
+#for compatability with official badge firmware
+nvs_key,  data, nvs_keys, ,          0x1000
+nnc_data, data, 0xDA,     ,          0x4000

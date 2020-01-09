@@ -7,6 +7,8 @@ static uint16_t _wifi_ap_number = 0;
 
 CWiFi WiFi;
 
+CTaskPool pool_wifi_tasks(true);
+
 const char* WIFI_AUTH_MODE_STR[WIFI_AUTH_MAX] = {
           "WIFI_AUTH_OPEN",
           "WIFI_AUTH_WEP",
@@ -62,33 +64,76 @@ uint32_t mac2str_n(char* buf, uint32_t bufsize, mac_t mac)
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-void wifi_station_start(int channel)
+void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
-  ESP_LOGD(__FUNCTION__, "Starting...");
-
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-  ESP_ERROR_CHECK(esp_wifi_start());
-
-  channel = MIN(WIFI_MAX_CH, MAX(1,channel));
-  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-  ESP_LOGD(__FUNCTION__, "Started.");
+    switch(event_id)
+    {
+      case WIFI_EVENT_STA_START:
+        {
+          if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
+          {
+            esp_err_t err=esp_wifi_connect();
+            if(err!=ESP_OK){ 
+              //ESP_ERR_WIFI_NOT_STARTED
+              ESP_LOGW(TAG,"Failed to connect, err=%x", err);
+              WiFi._join2ap_state=WiFi_JOIN2AP_FAILED;
+              xEventGroupSetBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BIT_FAILED);
+            }
+          }
+        }
+        break;
+      case WIFI_EVENT_STA_DISCONNECTED:
+        if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
+        {
+          if (WiFi._join2ap_retries) {
+              esp_wifi_connect();
+              WiFi._join2ap_retries--;
+              ESP_LOGI(TAG, "Retry to connect to the AP");
+          } else {
+              WiFi._join2ap_state=WiFi_JOIN2AP_FAILED;
+              xEventGroupSetBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BIT_FAILED);
+          }
+        }
+        if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTED)
+        {
+          WiFi._join2ap_state=WiFi_JOIN2AP_IDLE;
+          xEventGroupClearBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BITS_ALL);
+        }
+        break;
+      case WIFI_EVENT_STA_CONNECTED:
+        {
+          wifi_event_sta_connected_t* event = (wifi_event_sta_connected_t*) event_data;
+          ESP_LOGI(TAG, "station joined to SSID=%s",event->ssid);
+        }
+        break;
+      case WIFI_EVENT_AP_STACONNECTED:
+        {
+          wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
+          ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",MAC2STR(event->mac), event->aid);
+        }
+        break;
+      case IP_EVENT_STA_GOT_IP:
+        if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
+        {
+          ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+          ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+          WiFi._join2ap_state=WiFi_JOIN2AP_CONNECTED;
+          xEventGroupSetBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BIT_CONNECTED);
+        }
+        break;
+      default:
+        break;
+   }
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////
-//
-//
-static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
-    if (event_id == WIFI_EVENT_AP_STACONNECTED) {
-        wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-        ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",MAC2STR(event->mac), event->aid);
-    } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
-        wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
-        ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d",MAC2STR(event->mac), event->aid);
+    switch(event_id){
+      default:
+        break;
     }
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -99,11 +144,14 @@ CWiFi::CWiFi()
     mode=WiFi_MODE_NONE;
     channel=1;
     _promiscuous_cb=NULL;
+    _join2ap_state=WiFi_JOIN2AP_IDLE;
+    _join2ap_retries=5;
     strcpy(wf_country.cc, "UA");
     wf_country.schan = 1;
     wf_country.nchan = 14;
     wf_country.max_tx_power = 100, //units is 0.25 i.e. 25dBm
     wf_country.policy = WIFI_COUNTRY_POLICY_MANUAL;
+    wifi_event_group = xEventGroupCreate();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -120,13 +168,15 @@ void CWiFi::init(void)
   //tcpip_adapter_init(); - deprecated
   esp_netif_init();
   ESP_ERROR_CHECK(esp_event_loop_create_default());
+  esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
-  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));//??
   ESP_ERROR_CHECK(esp_wifi_set_country(&wf_country));
   //ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
 
@@ -172,6 +222,9 @@ esp_err_t CWiFi::set_mode(WiFi_MODES m, wifi_bandwidth_t bandwidth, wifi_config_
       break;
     case WiFi_MODE_STA:
       ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+      if(cfg) {
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, cfg));
+      }
       ESP_ERROR_CHECK(esp_wifi_start());
       mode=m;
       break;
@@ -204,6 +257,13 @@ esp_err_t CWiFi::set_mode(WiFi_MODES m, wifi_bandwidth_t bandwidth, wifi_config_
       }
       ESP_LOGD(__FUNCTION__, "Stop wifi");
       ESP_ERROR_CHECK(esp_wifi_stop());
+      if(mode==WiFi_MODE_STA)
+      {
+        ESP_LOGD(__FUNCTION__, "Stop STA");
+        if(_join2ap_state!=WiFi_JOIN2AP_IDLE)
+          esp_wifi_disconnect();
+        _join2ap_state=WiFi_JOIN2AP_IDLE;
+      }
       mode=m;
       break;
   }
@@ -256,34 +316,15 @@ void CWiFi::set_promiscuous_callback(WiFi_PROMISCUOUS_CALLBACK callback)
 //
 uint32_t CWiFi::scan_APs(void)
 {
-    set_mode(WiFi_MODE_STA);
-
-    //esp_netif_init();
-    //ESP_ERROR_CHECK(esp_event_loop_create_default());
-    //esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
-    //assert(sta_netif);
-    //wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    //ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    wifi_config_t wifi_config;
+    memset(&wifi_config,0,sizeof(wifi_config));
+    set_mode(WiFi_MODE_STA, WIFI_BW_HT40, &wifi_config);
 
     _wifi_ap_number = DEFAULT_SCAN_LIST_SIZE;
     memset(_wifi_ap_info, 0, sizeof(_wifi_ap_info));
     ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, true));
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&_wifi_ap_number, _wifi_ap_info));
     ESP_LOGD(TAG, "Total APs scanned = %u", _wifi_ap_number);
-    // for (int i = 0; i < _wifi_ap_number; i++) 
-    // {
-    //   ESP_LOGI(TAG, "SSID \t\t%s", _wifi_ap_info[i].ssid);
-    //   ESP_LOGI(TAG, "MAC  \t\t%02x:%02x:%02x:%02x:%02x:%02x", 
-    //     _wifi_ap_info[i].bssid[0], _wifi_ap_info[i].bssid[1], _wifi_ap_info[i].bssid[2],
-    //     _wifi_ap_info[i].bssid[3], _wifi_ap_info[i].bssid[4], _wifi_ap_info[i].bssid[5]);
-    //   ESP_LOGI(TAG, "RSSI \t\t%d", _wifi_ap_info[i].rssi);
-      
-    //   print_auth_mode(_wifi_ap_info[i].authmode);
-    //   if (_wifi_ap_info[i].authmode != WIFI_AUTH_WEP) {
-    //       print_cipher_type(_wifi_ap_info[i].pairwise_cipher, _wifi_ap_info[i].group_cipher);
-    //   }
-    //   ESP_LOGI(TAG, "Channel \t\t%d\n", _wifi_ap_info[i].primary);
-    // }
     return _wifi_ap_number;
 }
 
@@ -324,3 +365,37 @@ mac_t CWiFi::get_mac(wifi_interface_t ifx)
   esp_wifi_get_mac(ifx,mac);
   return mac_t(mac);
 }
+
+
+esp_err_t CWiFi::join2AP(const char* ssid, const char* pass, int timeout_ms, bool bWait)
+{
+  _join2ap_state=WiFi_JOIN2AP_CONNECTING;
+  _join2ap_retries=DEFAULT_ESP_WIFI_STA_MAXIMUM_RETRY;
+  xEventGroupClearBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BITS_ALL);
+
+  wifi_config_t wifi_config;
+  memset(&wifi_config,0,sizeof(wifi_config));
+  strncpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+  if (pass) {
+    strncpy((char *)wifi_config.sta.password, pass, sizeof(wifi_config.sta.password));
+  }
+
+  WiFi.set_mode(WiFi_MODE_STA, WIFI_BW_HT40, &wifi_config);
+
+  if(!bWait)
+    return ESP_OK;
+
+  int bits = xEventGroupWaitBits(wifi_event_group, WiFi_JOIN2AP_BIT_CONNECTED | WiFi_JOIN2AP_BIT_FAILED, 
+                                 false,  //do not reset bits
+                                 false,  //wait for any event
+                                 timeout_ms / portTICK_PERIOD_MS);
+
+  if(bits & WiFi_JOIN2AP_BIT_CONNECTED){
+    printf("WiFi Connected\n");
+    return ESP_OK;
+  }
+
+  return ESP_FAIL;
+
+}
+

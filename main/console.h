@@ -16,6 +16,7 @@
 #include "cmd_tester.h"
 #include "cmd_scan.h"
 #include "cmd_targets.h"
+#include "cmd_join.h"
 
 
 #define CONSOLE_HISTORY_PATH "/data/history.txt"
@@ -25,4 +26,3 @@ void console_task(const char *startcmd=NULL);
 
 void console_init(void);
 
-extern CTaskPool pool_wifi_tasks;

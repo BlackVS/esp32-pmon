@@ -66,3 +66,7 @@ void register_cmd_targets(void)
     ESP_ERROR_CHECK(esp_console_cmd_register(&targets_cmd));
     ESP_LOGD(__FUNCTION__, "Started.");
 }
+
+
+
+

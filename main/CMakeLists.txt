@@ -17,6 +17,7 @@ idf_component_register(SRCS
                             cmd_tester.cpp
                             cmd_scan.cpp
                             cmd_targets.cpp
+                            cmd_join.cpp
                             task.cpp
                         INCLUDE_DIRS 
                             "."

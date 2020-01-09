@@ -5,7 +5,7 @@ static const char *TAG = __FILE__;
 static const esp_vfs_fat_mount_config_t mount_config = {
             .format_if_mount_failed = true,
             .max_files = 4,
-            .allocation_unit_size = 0 //i.e ==sector
+            .allocation_unit_size = 512 // 0==sector
     };
 
 

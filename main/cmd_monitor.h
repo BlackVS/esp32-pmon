@@ -2,6 +2,7 @@
 
 #define CONFIG_PMON_TASK_STACK_SIZE 1024*8
 #define CONFIG_PMON_TASK_PRIORITY 5
+#define CONFIG_PMON_DEAUTH_DETECT_LEVEL 1
 
 #define PACKET_PROCESS_PACKET_TIMEOUT_MS (100)
 
@@ -27,7 +28,7 @@ extern "C" {
 
 void register_cmd_monitor(void);
 
-class CMonitorTask: public CTask
+class CMonitorTask: public CTaskThread
 {
     public:
         bool              f_verbose;
@@ -44,7 +45,7 @@ class CMonitorTask: public CTask
 
     public:
         CMonitorTask(const char* title, uint32_t stack_size=1024*4, uint32_t task_prior=5, CTaskPool* task_pool = NULL) :
-            CTask(title, stack_size, task_prior, task_pool)
+            CTaskThread(title, stack_size, task_prior, task_pool)
             {
                 pr_deauths=0; 
                 pr_pckt_counter=0;
@@ -60,8 +61,8 @@ class CMonitorTask: public CTask
         //void update(int32_t i_deauths, int32_t i_pckt_counter, int32_t i_rssi_sum, int32_t i_rssi_avg);
 
     protected:
+        //CTaskThread
         virtual esp_err_t init(void);
-        //
         virtual esp_err_t starting(void);
         virtual bool      execute(void);
         virtual esp_err_t finished(void);

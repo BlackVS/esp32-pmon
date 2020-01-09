@@ -5,7 +5,7 @@ static const char *TAG = __FILE__;
 extern "C" void _task_callback(void *pvParameters) 
 {
     ESP_LOGD(__FUNCTION__, "Starting...");
-    CTask* task=(CTask*)pvParameters;
+    CTaskThread* task=(CTaskThread*)pvParameters;
 
     if(!task){
         ESP_LOGE(__FUNCTION__, "Error: no task given to callback");
@@ -36,7 +36,7 @@ extern "C" void _task_callback(void *pvParameters)
     vTaskDelete(NULL); //self delete
 }
 
-esp_err_t CTask::_start_internal(void)
+esp_err_t CTaskThread::_start_internal(void)
 {
     if(task_running){
         ESP_LOGW(TAG, "Task already running");
@@ -58,7 +58,7 @@ esp_err_t CTask::_start_internal(void)
     return ESP_OK;
 }
 
-esp_err_t CTask::start(void)
+esp_err_t CTaskThread::start(void)
 {
     _add2pool_internal(); //deffered adding to pool
 
@@ -68,7 +68,7 @@ esp_err_t CTask::start(void)
     return _start_internal();
 }
 
-esp_err_t CTask::stop(bool fWait)
+esp_err_t CTaskThread::stop(bool fWait)
 {
     if(!task_running) 
         return ESP_OK; //already stopped
@@ -81,7 +81,7 @@ esp_err_t CTask::stop(bool fWait)
 }
 
 
-esp_err_t CTask::_add2pool_internal(void)
+esp_err_t CTaskThread::_add2pool_internal(void)
 {
     if(task_id<0 && task_pool)
         task_id=task_pool->task_add(this);
@@ -91,7 +91,7 @@ esp_err_t CTask::_add2pool_internal(void)
 
 
 
-int32_t  CTaskPool::task_add(CTask* task)
+int32_t  CTaskPool::task_add(ITask* task)
 {
     int32_t id=pool.size();
     pool.push_back(task);
@@ -110,13 +110,13 @@ esp_err_t CTaskPool::task_start(int32_t task_id)
         {
             if(i==task_id) 
                 continue;
-            CTask* task=pool[i];
+            ITask* task=pool[i];
             if(task->is_running()){
                 task->stop(true);
             }
         }
     }
-    CTask* task=pool[task_id];
+    ITask* task=pool[task_id];
     if(task->is_running())
     {
         ESP_LOGW(TAG, "Task already running!");
@@ -130,7 +130,7 @@ esp_err_t CTaskPool::task_stop(int32_t task_id)
 {
     if(task_id<0 || task_id>=pool.size())
         return ESP_ERR_INVALID_ARG;
-    CTask* task=pool[task_id];
+    ITask* task=pool[task_id];
     if(!task->is_running())
     {
         ESP_LOGW(TAG, "Task not running!");
@@ -143,10 +143,65 @@ esp_err_t CTaskPool::tasks_stop_all(void)
 {
     for(int i=0; i<pool.size(); i++)
     {
-        CTask* task=pool[i];
+        ITask* task=pool[i];
         if(task->is_running()){
             task->stop(true);
         }
     }
+    return ESP_OK;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+esp_err_t CTaskStatic::_start_internal(void)
+{
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t CTaskStatic::_stop_internal(void)
+{
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t CTaskStatic::start(void)
+{
+    _add2pool_internal(); //deffered adding to pool
+
+    esp_err_t err;
+    if(task_pool) {
+          pool_wifi_tasks.tasks_stop_all();
+    }
+    err = _start_internal();
+    task_running=err==ESP_OK;
+    if(!task_running)
+        _stop_internal();
+    return err;
+}
+
+esp_err_t CTaskStatic::stop(bool fWait)
+{
+    if(!task_running) 
+        return ESP_OK; //already stopped
+    task_running=false;
+    _stop_internal();
+    return ESP_OK;
+}
+
+
+esp_err_t CTaskStatic::_add2pool_internal(void)
+{
+    if(task_id<0 && task_pool)
+        task_id=task_pool->task_add(this);
     return ESP_OK;
 }

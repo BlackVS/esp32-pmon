@@ -4,7 +4,7 @@
 __attribute__ ((unused)) 
 static const char *TAG = __FILE__;
 
-static int _death_alarm_thresh=10;
+static int _death_alarm_thresh=CONFIG_PMON_DEAUTH_DETECT_LEVEL;
 
 CMonitorTask monitor("Monitor", 8192, 5, &pool_wifi_tasks);
 
@@ -247,7 +247,7 @@ bool CMonitorTask::execute(void)
         oled_draw();
 
         //ALARM
-        leds_alarm_set(pr_deauths>_death_alarm_thresh);
+        leds_alarm_set(pr_deauths>=_death_alarm_thresh);
 
         ////// next round
         pr_deauths = 0;       // deauth frames per second

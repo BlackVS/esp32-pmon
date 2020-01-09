@@ -1,6 +1,11 @@
 #pragma once
 
 #define DEFAULT_SCAN_LIST_SIZE 100
+#define DEFAULT_ESP_WIFI_STA_MAXIMUM_RETRY 5
+
+#define WiFi_JOIN2AP_BIT_CONNECTED  BIT0
+#define WiFi_JOIN2AP_BIT_FAILED     BIT1
+#define WiFi_JOIN2AP_BITS_ALL       BIT0 + BIT1
 
 #include "oui.h"
 
@@ -12,6 +17,12 @@ typedef enum {
      WiFi_EVENT_MODE_CHANGED, //just changed mode
 } WiFi_EVENT;
 
+typedef enum {
+    WiFi_JOIN2AP_IDLE=0,
+    WiFi_JOIN2AP_CONNECTING,
+    WiFi_JOIN2AP_CONNECTED,
+    WiFi_JOIN2AP_FAILED,
+} WiFi_JOIN2AP_STATE;
 
 extern "C" typedef void (*WiFi_PROMISCUOUS_CALLBACK)(void* buf, wifi_promiscuous_pkt_type_t type);
 typedef void (*WiFi_EVENTS_CALLBACK)(WiFi_EVENT ev, uint32_t arg);
@@ -151,13 +162,20 @@ typedef struct {
 	uint8_t payload[0]; /* network data ended with 4 bytes csum (CRC32) */
 } wifi_ieee80211_packet_t;
 
-class CWiFi{
+class CWiFi
+{
     WiFi_MODES mode;
     wifi_country_t wf_country;
     uint32_t channel;
     //promiscuous
     WiFi_PROMISCUOUS_CALLBACK _promiscuous_cb;
     WiFi_EVENTS_CALLBACK      _events_cb;
+    //join2AP
+    WiFi_JOIN2AP_STATE     _join2ap_state;
+    uint32_t            _join2ap_retries;
+protected:
+    EventGroupHandle_t  wifi_event_group;
+
 public:
     CWiFi();
     void init(void);
@@ -176,13 +194,19 @@ public:
 
     void set_promiscuous_callback(WiFi_PROMISCUOUS_CALLBACK callback);
 
+    //scan APs
     uint32_t scan_APs(void); //return a number of found APs
     int  scan_APs_get_count(void);
     bool scan_APs_get_data(uint32_t idx, wifi_ap_record_t& ap);
 
+    //join to AP
+    esp_err_t           join2AP(const char* ssid, const char* pass, int timeout, bool bWait=true);
+    WiFi_JOIN2AP_STATE  join2AP_getstate(void) {return _join2ap_state;}
+
     mac_t get_mac(wifi_interface_t ifx=WIFI_IF_AP);
-public:
-protected:
+
+friend void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+friend void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
 };
 
 extern CWiFi WiFi;
@@ -197,3 +221,4 @@ void     int2mac(uint64_t i, mac_t& mac);
 
 //void wifi_init(void);
 
+extern CTaskPool pool_wifi_tasks;
