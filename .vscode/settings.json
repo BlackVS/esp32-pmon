@@ -8,6 +8,10 @@
         "istream": "cpp",
         "ostream": "cpp",
         "sstream": "cpp",
-        "numeric": "cpp"
+        "numeric": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "vector": "cpp"
     }
 }
