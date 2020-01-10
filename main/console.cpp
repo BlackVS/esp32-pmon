@@ -69,6 +69,7 @@ void register_cmds()
   register_cmd_scan();
   register_cmd_targets();
   register_cmd_join();
+  register_cmd_npm();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

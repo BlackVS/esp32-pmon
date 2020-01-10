@@ -12,6 +12,8 @@
         "deque": "cpp",
         "list": "cpp",
         "string": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "cstring": "cpp",
+        "iosfwd": "cpp"
     }
 }

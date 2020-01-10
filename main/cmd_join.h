@@ -25,3 +25,5 @@ class CJoinTask: public CTaskStatic
         virtual esp_err_t _start_internal(void);
         virtual esp_err_t _stop_internal(void);
 };
+
+extern CJoinTask wifi_join;

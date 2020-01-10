@@ -219,6 +219,7 @@ uint32_t    mac2str_n(char* buf, uint32_t bufsize, mac_t mac);
 uint64_t mac2int(mac_t mac);
 void     int2mac(uint64_t i, mac_t& mac);
 
-//void wifi_init(void);
+//http
+esp_err_t http_get(const char *url, std::string& data);
 
 extern CTaskPool pool_wifi_tasks;

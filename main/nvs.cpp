@@ -79,8 +79,8 @@ esp_err_t nvs_settings_getString(const char *name, std::string& value) {
   size_t l=0;  
   err=nvs_get_str(my_handle, name, NULL, &l);
   if(err==ESP_OK&&l>0) {
-    value.reserve(l);
-    l=value.capacity();
+    value.resize(l,0);
+    l=value.size();
     err=nvs_get_str(my_handle, name, &value[0], &l);
   }
   nvs_close(my_handle);
