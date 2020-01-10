@@ -113,10 +113,6 @@ esp_err_t npm_parse(const std::string& data, NPM_PACKET& res)
   return ESP_OK;
 }
 
-
-
-
-
 esp_err_t npm_load_list(void)
 {
   packets.clear();
@@ -185,6 +181,160 @@ void npm_print_list(bool bDetailed=false)
   }
 }
 
+static esp_err_t validate_image_header(esp_app_desc_t *new_app_info)
+{
+    if (new_app_info == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_app_desc_t running_app_info;
+    if (esp_ota_get_partition_description(running, &running_app_info) == ESP_OK) {
+        ESP_LOGI(TAG, "Running firmware version: %s", running_app_info.version);
+    }
+
+    if (memcmp(new_app_info->version, running_app_info.version, sizeof(new_app_info->version)) == 0) {
+        ESP_LOGW(TAG, "Current running version is the same as a new. We will not continue the update.");
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+static size_t _npm_content_length=0;
+esp_err_t _http_npm_event_handler(esp_http_client_event_t *evt)
+{
+    switch(evt->event_id) {
+        case HTTP_EVENT_ERROR:
+            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+            break;
+        case HTTP_EVENT_ON_CONNECTED:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+            break;
+        case HTTP_EVENT_HEADER_SENT:
+            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+            break;
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            //printf("HTTP_EVENT_ON_HEADER, key=%s, value=%s\n", evt->header_key, evt->header_value);
+            if(strcmp(evt->header_key,"Content-Length")==0){
+              _npm_content_length=atoi(evt->header_value);
+              //printf("HTTP_EVENT_ON_HEADER, key=%s, value=%s\n", evt->header_key, evt->header_value);
+              printf("Firmware size: %i\n", _npm_content_length);
+            }
+            break;
+        case HTTP_EVENT_ON_DATA:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            if (!esp_http_client_is_chunked_response(evt->client)) {
+                // Write out data
+                ESP_LOGD(TAG, "data: %.*s", evt->data_len, (char*)evt->data);
+            }
+            break;
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+            break;
+        case HTTP_EVENT_DISCONNECTED:
+            {
+              ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+              int mbedtls_err = 0;
+              esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+              if (err != 0) {
+                  ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+                  ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+              }
+            }
+            break;
+    }
+    return ESP_OK;
+}
+
+esp_err_t npm_packet_load(int id)
+{
+    if(id>=packets.size()){
+      printf("Error: wrong id!\n");
+      return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_http_client_config_t config;
+    memset(&config, 0, sizeof(config));
+    config.url=packets[id].bin_url.c_str();
+    config.skip_cert_common_name_check = true;
+    config.event_handler=_http_npm_event_handler;
+    // esp_err_t ret = esp_https_ota(&config);
+    // if (ret == ESP_OK) {
+    //     esp_restart();
+    // } else {
+    //     ESP_LOGE(TAG, "Firmware upgrade failed");
+    // }
+    // while (1) {
+    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // }
+    esp_https_ota_config_t ota_config;
+    ota_config.http_config = &config;
+    esp_https_ota_handle_t https_ota_handle = NULL;
+    esp_err_t err = esp_https_ota_begin(&ota_config, &https_ota_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "ESP HTTPS OTA Begin failed");
+        esp_https_ota_finish(https_ota_handle);
+        return err;
+    }
+
+    esp_app_desc_t app_desc;
+    err = esp_https_ota_get_img_desc(https_ota_handle, &app_desc);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_https_ota_read_img_desc failed");
+        esp_https_ota_finish(https_ota_handle);
+        return err;
+    }
+    err = validate_image_header(&app_desc);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "image header verification failed");
+        esp_https_ota_finish(https_ota_handle);
+        return err;
+    }
+
+    size_t len_read=0;
+    int    progress=0;
+    while (1) {
+        err = esp_https_ota_perform(https_ota_handle);
+        if (err != ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+            break;
+        }
+        // esp_https_ota_perform returns after every read operation which gives user the ability to
+        // monitor the status of OTA upgrade by calling esp_https_ota_get_image_len_read, which gives length of image
+        // data read so far.
+        len_read=esp_https_ota_get_image_len_read(https_ota_handle);
+        //ESP_LOGD(TAG, "Image bytes read: %d", esp_https_ota_get_image_len_read(https_ota_handle));
+        if(_npm_content_length) {
+          int p= (len_read*100)/_npm_content_length;
+          if(p-progress>=5){
+            progress=p;
+            printf("Progress: %i%%\n",progress);
+          }
+        }
+    }
+
+    if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
+        // the OTA image was not completely received and user can customise the response to this situation.
+        ESP_LOGE(TAG, "Complete data was not received.");
+    }
+
+    esp_err_t ota_finish_err = esp_https_ota_finish(https_ota_handle);
+    if ((err == ESP_OK) && (ota_finish_err == ESP_OK)) {
+        ESP_LOGI(TAG, "ESP_HTTPS_OTA upgrade successful. Rebooting ...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        esp_restart();
+    } else {
+        ESP_LOGE(TAG, "ESP_HTTPS_OTA upgrade failed %d", ota_finish_err);
+    }
+
+    while (1) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+
+    return ESP_OK;
+}
+
+
 /* 'version' command */
 int cmd_npm(int argc, char **argv) 
 {
@@ -213,6 +363,15 @@ int cmd_npm(int argc, char **argv)
       npm_print_list(_npm_args.verbose->count > 0);
     } else {
       printf("Failed to load packets list!!!\n");
+    }
+  }
+
+  if(bInstall){
+    esp_err_t err=npm_packet_load(_npm_args.install->ival[0]);
+    if(err!=ESP_OK) {
+      printf("Failed to upload new firmware!\n");
+    } else {
+      printf("Ok!");
     }
   }
   return 0;
