@@ -12,7 +12,7 @@ idf_component_register(SRCS
                             vfs.cpp
                             wifi.cpp
                             targets.cpp
-                            cmd_version.cpp 
+                            cmd_system.cpp 
                             cmd_monitor.cpp
                             cmd_tester.cpp
                             cmd_scan.cpp

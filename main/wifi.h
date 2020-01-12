@@ -1,5 +1,9 @@
 #pragma once
 
+// 1 - 14 channels (1-11 for US, 1-13 for EU and 1-14 for Japan)
+#define WIFI_MAX_CH 14      
+#define WIFI_SNAP_LEN 2324   // max len of each recieved packet
+
 #define DEFAULT_SCAN_LIST_SIZE 100
 #define DEFAULT_ESP_WIFI_STA_MAXIMUM_RETRY 5
 

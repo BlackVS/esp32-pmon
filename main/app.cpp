@@ -93,6 +93,7 @@ void app_main()
   
 //  printf("Size of wifi_target_t=%i\n", sizeof(wifi_target_t));
 //  printf("Size of mac_t=%i\n", sizeof(mac_t));
-  console_task("pmon -c 1 --start");
+  //console_task("pmon -c 1 --start");
   //console_task();
+  console_task(NULL, true);//run startup if present
 }

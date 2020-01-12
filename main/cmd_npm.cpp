@@ -16,7 +16,6 @@ typedef struct {
 } NPM_PACKET;
 
 std::vector<NPM_PACKET> packets;
-typedef std::vector<std::string> ARRSTR;
 
 static struct {
     struct arg_lit *list;
@@ -26,52 +25,11 @@ static struct {
 } _npm_args;
 
 
-std::string& ltrim(std::string& str, const std::string& chars = "\t\n\v\f\r ")
-{
-    str.erase(0, str.find_first_not_of(chars));
-    return str;
-}
- 
-std::string& rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ")
-{
-    str.erase(str.find_last_not_of(chars) + 1);
-    return str;
-}
- 
-std::string& trim(std::string& str, const std::string& chars = "\t\n\v\f\r ")
-{
-    return ltrim(rtrim(str, chars), chars);
-}
-
-int npm_split(const std::string& s, ARRSTR& data)
-{
-    size_t pos=0;
-    size_t len=s.size();
-    std::string t;
-    data.clear();
-    while(pos<len){
-      char c=s[pos];
-      if(c=='\n'||c=='\r'){
-        if(t.size()>1&&t[0]!='#')
-          data.push_back(t);
-        t.clear();
-        pos++;
-        //skip
-        while(pos<len&&(s[pos]=='\n'||s[pos]=='\r'))
-          pos++;
-      } else 
-      {
-        t+=c;
-        pos++;
-      }
-    }
-    return data.size();
-}
 
 esp_err_t npm_parse(const std::string& data, NPM_PACKET& res)
 {
   ARRSTR text;
-  int cnt=npm_split(data, text);
+  int cnt=strsplit(data, text);
   if(cnt<7){
     printf("Wrong packets info file!\n");
     return ESP_ERR_INVALID_ARG;
@@ -83,8 +41,8 @@ esp_err_t npm_parse(const std::string& data, NPM_PACKET& res)
       printf("Wrong packets info file - no delimiter found!\n");
       return ESP_ERR_INVALID_ARG;
     }
-    std::string key  =s.substr(0,pd); trim(key);
-    std::string value=s.substr(pd+1); trim(value);
+    std::string key  =s.substr(0,pd); strtrim(key);
+    std::string value=s.substr(pd+1); strtrim(value);
     ESP_LOGD(TAG, "[%s]=[%s]", key.c_str(), value.c_str());
     if(key.compare("NAME")==0){
       res.name=value;
@@ -124,7 +82,7 @@ esp_err_t npm_load_list(void)
   }
   //printf("Read %i bytes\n", (int)data.size());
   ARRSTR purls;
-  int pcnt=npm_split(data,purls);
+  int pcnt=strsplit(data,purls);
   if(pcnt){
     //printf("%i packets available:\n",pcnt);
     for(int i=0;i<pcnt;i++){

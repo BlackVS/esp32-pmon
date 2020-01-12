@@ -6,9 +6,6 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
-
 #include <stdio.h>
 //#include <string.h>
 #include <cstring>
@@ -16,7 +13,11 @@
 #include <stdlib.h>
 #include <vector>
 #include <map>
+#include <iostream>
 #include <sstream>
+#include <fstream>
+
+#include "strings.h"
 
 
 #include "log.h"
@@ -26,6 +27,19 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_ota_ops.h"
+
+///// netif not supports C++ compiler yet
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "esp_wifi.h"
+#include "lwip/apps/sntp.h"
+#include "lwip/err.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

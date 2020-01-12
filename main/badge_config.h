@@ -1,6 +1,7 @@
 #pragma once
 
-#define NNC_FW_VERSION "2.02.a"
+#define NNC_FW_VERSION "3.0.a"
+
 #define NUM_LEDS 10
 
 //blue led on badge

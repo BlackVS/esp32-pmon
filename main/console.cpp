@@ -63,7 +63,7 @@ void console_init(void)
 //
 void register_cmds() 
 {
-  register_cmd_version();
+  register_cmd_system();
   register_cmd_monitor();
   register_cmd_deauth();
   register_cmd_scan();
@@ -72,11 +72,41 @@ void register_cmds()
   register_cmd_npm();
 }
 
+
+esp_err_t console_script_run(const char * filename) 
+{
+    CTextEditor script(filename);
+    if(!script.isLoaded()){
+        printf("No script file %s found!\n", filename);
+        return ESP_ERR_INVALID_ARG;
+    }
+    if(script.size()==0) {
+        printf("Script file is empty!\n");
+        return ESP_ERR_INVALID_ARG;
+    }
+    printf("Startup script is found!\n");
+    for(int i=0; i<script.size(); i++)
+    {
+        int ret;
+        std::string line=script.get(i);
+        printf("LINE %i: %s\n", i, line.c_str());
+        esp_err_t err=esp_console_run(line.c_str(), &ret);
+        if(err==ESP_OK) {
+            printf("OK\n");
+        } else {
+            printf("Error: %s\n", esp_err_to_name(err));   
+            printf("Script aborted!\n");   
+            return err;
+        }
+    }
+    return ESP_OK;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 //
 //
 //void console_task(void *param) 
-void console_task(const char* startcmd) 
+void console_task(const char* startcmd, bool bStartupEnable) 
 {
     ESP_LOGD(__FUNCTION__, "Starting...");
 
@@ -114,6 +144,10 @@ void console_task(const char* startcmd)
 
     if(startcmd){
         /*esp_err_t err =*/ esp_console_run(startcmd, &ret);
+    }
+    if(bStartupEnable)
+    {
+        console_script_run(VFS_STARTUP_FILE);
     }
     /* Main loop */
     while (true) {
