@@ -9,6 +9,109 @@
 
 void register_cmd_monitor(void);
 
+#define PMON_DEFAULT_BUFFER_LEN 128
+
+typedef struct {
+    uint32_t pckt_counter;
+    uint32_t pr_deauths;
+    int32_t  rssi_avg;
+} PACKET_STAT;
+
+class CPacketsBuffer
+{
+    std::vector<PACKET_STAT> buffer;
+    int32_t bufpos;
+    int32_t buflen_used;
+public:
+    CPacketsBuffer(int buflen):
+        bufpos(0)
+        {
+            buffer.resize(buflen);
+            clear();
+        }
+
+    void clear(void){
+        bufpos=0;
+        buflen_used=0;
+        for(auto& b: buffer)
+            memset(&b,0,sizeof(b));
+    }
+    void add(PACKET_STAT v){
+        //printf("+ %i \n", v);
+        int32_t buflen=buffer.size();
+        while(bufpos>=buflen)
+            bufpos-=buflen;
+        buffer[bufpos]=v;
+        bufpos++;
+        buflen_used=MIN(buflen_used+1, buflen);
+    }
+    
+    uint32_t len(void){
+        return buffer.size();
+    }
+
+    PACKET_STAT get(int32_t pos){
+        pos+=bufpos;
+        int32_t buflen=buffer.size();
+        while(pos>=buflen)
+            pos-=buflen;
+        while(pos<0)
+            pos+=buflen;
+        return buffer[pos];
+    }
+
+    uint32_t get_max_pckt_counter(void){
+        uint32_t res=this->get(0).pckt_counter;
+        int32_t buflen=buffer.size();
+        for(int i=1; i<buflen; i++)
+            res=MAX(res, this->get(i).pckt_counter);
+        return res;
+    }
+
+    uint32_t get_avg_pckt_counter(void){
+        if(buflen_used==0)
+            return 0;
+        uint64_t res=get(-1).pckt_counter;
+        for(int j=1; j<buflen_used; j++)
+            res+=this->get(-1-j).pckt_counter;
+        return res/buflen_used;
+    }
+
+    int32_t get_avg_pckt_rssi(void){
+        if(buflen_used==0)
+            return 0;
+        int64_t res=get(-1).rssi_avg;
+        for(int j=1; j<buflen_used; j++)
+            res+=get(-1-j).rssi_avg;
+        return res/buflen_used;
+    }
+
+    int32_t get_max_pckt_rssi(void){
+        int32_t res=-100;//def zero level
+        int32_t buflen=buffer.size();
+        for(int i=0; i<buflen; i++) {
+            int32_t v=get(i).rssi_avg;
+            if(v==0) continue;
+            res=MAX(res, v);
+        }
+            
+        return res;
+    }
+
+    int32_t get_min_pckt_rssi(void){
+        int32_t res=0;
+        int32_t buflen=buffer.size();
+        for(int i=0; i<buflen; i++) {
+            int32_t v=get(i).rssi_avg;
+            if(v==0) continue;
+            res=MIN(res, v);
+        }
+        return res;
+    }
+
+};
+
+
 class CMonitorTask: public CTaskThread
 {
     public:

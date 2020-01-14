@@ -3,9 +3,6 @@
 static const char *TAG = __FILE__;
 
 #define _STARTUP_TOKEN "startup"
-#define REG_EXTENDED 1
-#define REG_ICASE (REG_EXTENDED << 1)
-
 
 static struct {
     struct arg_rex *cmd;

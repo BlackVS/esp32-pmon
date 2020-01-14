@@ -19,6 +19,7 @@
 #include "cmd_join.h"
 #include "cmd_npm.h"
 #include "cmd_startup.h"
+#include "cmd_radar.h"
 
 
 #define CONSOLE_HISTORY_PATH "/data/history.txt"

@@ -16,66 +16,7 @@ static struct {
     struct arg_end *end;
 } _pmon_args;
 
-#define PMON_BUFFER_LEN 128
-
-typedef struct {
-    uint32_t pckt_counter;
-    uint32_t rssi_avg;
-    uint32_t pr_deauths;
-} PMON_PACKET;
-
-class CBuffer
-{
-    PMON_PACKET buffer[PMON_BUFFER_LEN];
-    uint32_t buflen;
-    uint32_t bufpos;
-    uint32_t buflen_used;
-public:
-    CBuffer():
-        bufpos(0)
-        {
-            clear();
-        }
-    void clear(void){
-        bufpos=0;
-        buflen_used=0;
-        memset(buffer,0,sizeof(buffer));
-    }
-    void add(PMON_PACKET v){
-        //printf("+ %i \n", v);
-        while(bufpos>=PMON_BUFFER_LEN)
-            bufpos-=PMON_BUFFER_LEN;
-        buffer[bufpos]=v;
-        bufpos++;
-        buflen_used=MIN(buflen_used+1, PMON_BUFFER_LEN);
-    }
-    uint32_t len(void){
-        return PMON_BUFFER_LEN;
-    }
-    PMON_PACKET get(int32_t pos){
-        pos+=bufpos;
-        while(pos>=PMON_BUFFER_LEN)
-            pos-=PMON_BUFFER_LEN;
-        while(pos<0)
-            pos+=PMON_BUFFER_LEN;
-        return buffer[pos];
-    }
-    uint32_t get_max_pckt_counter(void){
-        uint32_t res=this->get(0).pckt_counter;
-        for(int i=1; i<this->len(); i++)
-            res=MAX(res, this->get(i).pckt_counter);
-        return res;
-    }
-    uint32_t get_avg_pckt_counter(void){
-        if(buflen_used==0)
-            return 0;
-        uint64_t res=get(-1).pckt_counter;
-        for(int j=1; j<buflen_used; j++)
-            res+=this->get(-1-j).pckt_counter;
-        return res/buflen_used;
-    }
-
-} pmon_packets;
+CPacketsBuffer pmon_packets(PMON_DEFAULT_BUFFER_LEN);
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -104,7 +45,7 @@ extern "C" void pmon_promiscuous_callback(void* buf, wifi_promiscuous_pkt_type_t
 
 
 
-void oled_draw()
+void monitor_oled_draw()
 {
     //if (!engine.nextFrame()) 
     //    return;
@@ -233,7 +174,7 @@ bool CMonitorTask::execute(void)
     if ( currentTime - lastDrawTime > 1000 ) 
     {
         lastDrawTime = currentTime;
-        PMON_PACKET packet;
+        PACKET_STAT packet;
         packet.pckt_counter=pr_pckt_counter;
         packet.rssi_avg=pr_rssi_avg;
         packet.pr_deauths=pr_deauths;
@@ -244,7 +185,7 @@ bool CMonitorTask::execute(void)
         }
         //////////////////////////////
         //OLED always
-        oled_draw();
+        monitor_oled_draw();
 
         //ALARM
         leds_alarm_set(pr_deauths>=_death_alarm_thresh);
@@ -263,7 +204,7 @@ esp_err_t CMonitorTask::finished(void)
     WiFi.set_event_handler(NULL); //to avoid recursive calls
     WiFi.set_mode(WiFi_MODE_NONE);
     oled_clear(true);
-    return ESP_OK;    return ESP_OK;
+    return ESP_OK;
 } 
 
 esp_err_t CMonitorTask::init(void) 

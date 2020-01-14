@@ -64,12 +64,13 @@ void console_init(void)
 void register_cmds() 
 {
   register_cmd_system();
+  register_cmd_join();
+  register_cmd_npm();
+  register_cmd_targets();
   register_cmd_monitor();
   register_cmd_deauth();
   register_cmd_scan();
-  register_cmd_targets();
-  register_cmd_join();
-  register_cmd_npm();
+  register_cmd_radar();
 }
 
 

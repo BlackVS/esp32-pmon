@@ -1,0 +1,45 @@
+#pragma once
+
+void register_cmd_radar(void);
+
+typedef enum {
+  RADAR_PACKETS_ALL=0,
+  RADAR_PACKETS_DEAUTH=1,
+} RADAR_PACKETS_TYPE;
+
+class CRadarTask: public CTaskThread
+{
+    public:
+        uint32_t           channel; //=0 if all
+        mac_t              mac;
+        RADAR_PACKETS_TYPE ptype;
+
+    protected:
+        uint32_t          channel_dur;
+        uint32_t          oled_refresh_dur;
+        bool              channel_auto;
+        uint32_t          starttime;
+        uint32_t          channel_starttime;
+
+    protected:
+        uint32_t          lastDrawTime;
+
+    public:
+        CRadarTask(const char* title, uint32_t stack_size=1024*4, uint32_t task_prior=5, CTaskPool* task_pool = NULL) :
+            CTaskThread(title, stack_size, task_prior, task_pool)
+            {
+                channel=0;
+                channel_auto=true;
+                channel_dur = 500;
+                oled_refresh_dur = 250;
+                starttime  =0;
+                channel_starttime=0;
+            }
+        virtual ~CRadarTask(){ }
+    protected:
+        //CTaskThread
+        virtual esp_err_t init(void);
+        virtual esp_err_t starting(void);
+        virtual bool      execute(void);
+        virtual esp_err_t finished(void);
+};
