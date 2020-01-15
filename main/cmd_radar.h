@@ -27,6 +27,7 @@ class CRadarTask: public CTaskThread
         bool               channel_auto;
         uint32_t           starttime;
         uint32_t           channel_starttime;
+        uint32_t           stats_starttime;
 
     protected:
         uint32_t           lastDrawTime;
@@ -53,4 +54,8 @@ class CRadarTask: public CTaskThread
         virtual esp_err_t starting(void);
         virtual bool      execute(void);
         virtual esp_err_t finished(void);
+        //
+        void reset_stats(void);
+    friend int  do_radar_cmd(int argc, char **argv);
+
 };

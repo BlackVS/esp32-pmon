@@ -54,6 +54,16 @@ typedef struct _mac_struct {
 
     _mac_struct(uint8_t* buf)//unsafe!!!
     {
+        set(buf);
+    }
+    
+    _mac_struct(uint64_t i)
+    {
+        set(i);
+    }
+
+    void set(uint8_t* buf)//unsafe!!!
+    {
         addr[0]=buf[0];
         addr[1]=buf[1];
         addr[2]=buf[2];
@@ -61,9 +71,8 @@ typedef struct _mac_struct {
         addr[4]=buf[4];
         addr[5]=buf[5];
     }
-    
-    _mac_struct(uint64_t i)
-    {
+
+    void set(uint64_t i) {
         uint8_t* buf=(uint8_t*)&i;
         addr[0]=buf[0];
         addr[1]=buf[1];
@@ -72,6 +81,34 @@ typedef struct _mac_struct {
         addr[4]=buf[4];
         addr[5]=buf[5];
     }
+
+    void set(uint8_t a,uint8_t b,uint8_t c,uint8_t d,uint8_t e,uint8_t f) 
+    {
+        addr[0]=a;
+        addr[1]=b;
+        addr[2]=c;
+        addr[3]=d;
+        addr[4]=e;
+        addr[5]=f;
+    }
+
+    bool set(const char* str)
+    {
+        uint32_t buf[6];
+        if(sscanf(str, "%02x:%02x:%02x:%02x:%02x:%02x", &buf[0], &buf[1], &buf[2], &buf[3], &buf[4], &buf[5])!=6)
+        {
+            ESP_LOGE("CWiFi::set", "Can't parse mac: %s", str);
+            return false;
+        }
+        addr[0]=buf[0];
+        addr[1]=buf[1];
+        addr[2]=buf[2];
+        addr[3]=buf[3];
+        addr[4]=buf[4];
+        addr[5]=buf[5];
+        return true;
+    }
+
 
     uint64_t to_int(void)
     {
@@ -114,6 +151,10 @@ typedef struct _mac_struct {
             if (addr[i] != 0x00) return true;
         return false;
     }
+
+    inline bool operator==(const _mac_struct& a) {
+        return addr[0]==a.addr[0] && addr[1]==a.addr[1] && addr[2]==a.addr[2] && addr[3]==a.addr[3] && addr[4]==a.addr[4] && addr[5]==a.addr[5];
+    }    
 } mac_t;
 
 typedef struct

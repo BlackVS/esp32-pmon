@@ -6,7 +6,7 @@ CRadarTask radar("Radar", 8192, 5, &pool_wifi_tasks);
 
 
 #define RSSI_MIN -90
-#define RSSI_MAX -50
+#define RSSI_MAX -20
 #define RSSI_K_FADE 0.9f
 
 CPacketsBuffer radar_timeseries(128);
@@ -15,7 +15,7 @@ PACKET_STAT    radar_hist[WIFI_MAX_CH];
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-static int do_radar_cmd(int argc, char **argv);
+int do_radar_cmd(int argc, char **argv);
 
 static struct {
     struct arg_lit *start;
@@ -23,7 +23,7 @@ static struct {
     struct arg_int *channel;
     struct arg_lit *targets;
     struct arg_str *mac;
-    struct arg_rex *type;
+    struct arg_rex *ptype;
     struct arg_rex *oledmode;
     struct arg_end *end;
 } _radar_args;
@@ -35,9 +35,9 @@ void register_cmd_radar(void)
     _radar_args.stop    = arg_lit0(NULL, "stop", "stop packets monitor");
     _radar_args.channel = arg_int0("c", "channel", "<channel>", "WiFi channel to monitor. If not used or 0 - scan all channels.");
     _radar_args.targets = arg_lit0("t", "targets", "Monitor selected targets");
-    _radar_args.mac     = arg_str0("m", "mac", "<AA:BB:CC:DD:EE:FF>", "Monitor target with specified mac address");
-    _radar_args.type    = arg_rex0(NULL, NULL, "all|deauth", NULL, REG_ICASE, NULL);
-    _radar_args.oledmode= arg_rex0("o", "oled", "none|time|hist", "OLED mode", REG_ICASE, NULL);
+    _radar_args.mac     = arg_str0("m", "mac", "all|AA:BB:CC:DD:EE:FF", "Monitor target with specified mac address");
+    _radar_args.ptype   = arg_rex0("p", "packets", "all|deauth",     "packets to monitor", REG_ICASE, NULL);
+    _radar_args.oledmode= arg_rex0("o", "oled"   , "none|time|hist", "OLED mode", REG_ICASE, NULL);
     _radar_args.end = arg_end(1);
     const esp_console_cmd_t radar_cmd = {
         .command = "radar",
@@ -63,11 +63,14 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
 {
     wifi_promiscuous_pkt_t* pr_pkt = (wifi_promiscuous_pkt_t*)buf;
     wifi_pkt_rx_ctrl_t ctrl = (wifi_pkt_rx_ctrl_t)pr_pkt->rx_ctrl;
-    //wifi_ieee80211_packet_t* packet = (wifi_ieee80211_packet_t*) &pr_pkt->payload;
-    //wifi_header_frame_control_t *frame_ctrl = (wifi_header_frame_control_t*)&packet->hdr.frame_ctrl;
+    wifi_ieee80211_packet_t* packet = (wifi_ieee80211_packet_t*) &pr_pkt->payload;
+    wifi_header_frame_control_t *frame_ctrl = (wifi_header_frame_control_t*)&packet->hdr.frame_ctrl;
 
-    // uint8_t p_type    = frame_ctrl->type;
-    // uint8_t p_subtype = frame_ctrl->subtype;
+    uint8_t p_type    = frame_ctrl->type;
+    uint8_t p_subtype = frame_ctrl->subtype;
+
+    mac_t mac_from = packet->hdr.mac_from;
+
     // uint32_t sig_length = ctrl.sig_len;
 
 
@@ -102,9 +105,18 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
     //     }
     // }
     // mac_t mac_to   = packet->hdr.mac_to;
-    // mac_t mac_from = packet->hdr.mac_from;
     //snif radio's MACs
-    // bool is_bad = ctrl.channel==0 || ctrl.rssi>0;
+
+    if(ctrl.channel==0 || ctrl.rssi>0)
+        return;//
+
+    if(radar.mac.is_valid())
+    {
+        bOk = bOk && mac_from==radar.mac;
+    }
+    if(radar.ptype==RADAR_PACKETS_DEAUTH) 
+        bOk = bOk && type==WIFI_PKT_MGMT && (p_subtype == WiFi_MGMT_DISASSOCIATION || p_subtype==WiFi_MGMT_DEAUTHENTICATION);
+
     if(bOk) {
         pr_pckt_counter++;
         pr_rssi_sum += ctrl.rssi;
@@ -112,10 +124,10 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
         if(pr_pckt_counter){
             pr_rssi_avg=pr_rssi_sum/pr_pckt_counter;
         }
-        if(ctrl.channel>0&&ctrl.channel<=WIFI_MAX_CH)
+        if(ctrl.channel>=1&&ctrl.channel<=WIFI_MAX_CH)
         {
             int v=-RSSI_MIN+MIN(RSSI_MAX, MAX(RSSI_MIN, pr_rssi_avg));
-            radar_hist[ctrl.channel].rssi_avg=v;
+            radar_hist[ctrl.channel-1].rssi_avg=v;
         }
     }
 }
@@ -192,8 +204,9 @@ void radar_oled_channels()
         int x2=x1+xbar-1;
         int y1=yb;
         int y2=yb-v;
-        oled_fillRect(x1, y1, x2, y2);
         oled_printf(x1, 56, STYLE_NORMAL, "%c", (c<10) ? ('0'+c) : ('A'+c-10) );
+        if(v) 
+            oled_fillRect(x1, y1, x2, y2);
     }
 
     oled_refresh();
@@ -201,33 +214,40 @@ void radar_oled_channels()
 
 esp_err_t CRadarTask::starting(void) 
 {
-    pr_deauths=0; 
-    pr_pckt_counter=0;
-    pr_rssi_sum=0;
-    pr_rssi_avg=-100;
+    reset_stats();
     lastDrawTime=0;
     radar_timeseries.clear();
     starttime=channel_starttime=millis();
     return ESP_OK;
 }
 
+void CRadarTask::reset_stats(void)
+{
+    pr_deauths=0; 
+    pr_pckt_counter=0;
+    pr_rssi_sum=0;
+    pr_rssi_avg=-100;
+    stats_starttime=millis();
+}
+
 bool CRadarTask::execute(void) 
 {
     uint32_t currentTime = millis();
 
+    int32_t v=pr_rssi_avg;
+    v=-RSSI_MIN+MIN(RSSI_MAX, MAX(RSSI_MIN, v));
+    v=(10*v)/(RSSI_MAX-RSSI_MIN);
+    v=MIN(10, MAX(0, v));
+    if(v>0)
+        leds_alarm_set(true, radar.ptype==RADAR_PACKETS_ALL?LED_WHITE:LED_RED, 0.9f, v, false );
+
     if ( channel_auto && currentTime >= channel_starttime + channel_dur ) 
     {
         WiFi.set_channel(WiFi.get_channel()+1, true);
-        if(WiFi.get_channel()==1) 
-            for(int c=0; c<WIFI_MAX_CH; c++)
-                radar_hist[c].rssi_avg=int(radar_hist[c].rssi_avg*RSSI_K_FADE);
         channel_starttime=millis();
-        //oled_printf_refresh(0,24,STYLE_NORMAL,"Channel: %i", WiFi.get_channel());
-        pr_pckt_counter = 0;
-        pr_deauths  = 0;
-        pr_rssi_sum = 0;
-        pr_rssi_avg = -100;
+        reset_stats();
     }
+
 
     if ( radar.oledmode!=RADAR_OLED_MODE_NONE ) 
     {
@@ -251,6 +271,13 @@ bool CRadarTask::execute(void)
                 default:
                     break;
             }
+//            if(WiFi.get_channel()==1) 
+            for(int c=0; c<WIFI_MAX_CH; c++)
+                radar_hist[c].rssi_avg=int(radar_hist[c].rssi_avg*RSSI_K_FADE);
+
+            if(!channel_auto)
+                reset_stats();
+
             lastDrawTime = currentTime;
         }
     } else {
@@ -268,6 +295,7 @@ esp_err_t CRadarTask::finished(void)
 {
     WiFi.set_event_handler(NULL); //to avoid recursive calls
     WiFi.set_mode(WiFi_MODE_NONE);
+    leds_alarm_set(false);
     oled_clear(true);
     return ESP_OK;
 } 
@@ -295,7 +323,7 @@ esp_err_t CRadarTask::init(void)
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-static int do_radar_cmd(int argc, char **argv)
+int do_radar_cmd(int argc, char **argv)
 {
     ESP_LOGD(__FUNCTION__, "Enter...");
     int nerrors = arg_parse(argc, argv, (void **)&_radar_args);
@@ -310,6 +338,22 @@ static int do_radar_cmd(int argc, char **argv)
         radar.stop(true);
         return 0;
     }
+
+    // --packets
+    if(_radar_args.ptype->count)
+    {
+        const char* ptype=_radar_args.ptype->sval[0];
+        if(strcmp(ptype,"all")==0){
+            radar.ptype=RADAR_PACKETS_ALL;
+        } else
+        if(strcmp(ptype,"deauth")==0){
+            radar.ptype=RADAR_PACKETS_DEAUTH;
+        } else
+            {
+            printf("Wrong parameter: %s\n", ptype);
+            return 0;
+        }
+}
 
     // --oledmode
     if(_radar_args.oledmode->count)
@@ -334,9 +378,31 @@ static int do_radar_cmd(int argc, char **argv)
     if (_radar_args.channel->count) 
     {
         int channel=_radar_args.channel->ival[0];
-        WiFi.set_channel(channel, bChangeOnTheFly);
+        if(channel==0){
+            radar.channel_auto=true;
+        } else {
+            WiFi.set_channel(channel, bChangeOnTheFly);
+            radar.channel_auto=false;
+        }
         radar.channel=channel;
     }
+
+    // --mac
+    if (_radar_args.mac->count) 
+    {
+        const char* macstr =_radar_args.mac->sval[0];
+        if(strcmp(macstr,"all")==0)
+        {
+            radar.mac.set(0,0,0,0,0,0);
+        } else
+        {
+            bool r=radar.mac.set(macstr);
+            if(!r) {
+                printf("Wrong parameter: %s\n", macstr);
+                return 0;
+            }
+        }
+    }            
 
     // --start
     if (_radar_args.start->count) {

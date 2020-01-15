@@ -90,6 +90,7 @@ void app_main()
 
   oled_draw_logo();
   oled_engine_init();
+  leds_alarm_set(false);
   
 //  printf("Size of wifi_target_t=%i\n", sizeof(wifi_target_t));
 //  printf("Size of mac_t=%i\n", sizeof(mac_t));

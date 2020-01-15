@@ -28,32 +28,41 @@ void leds_clear(void)
     leds_set_color_raw(i, 0);
 }
 
-void leds_set_color_raw(int index, uint32_t color) 
+void leds_set_color_raw(uint32_t index, uint32_t color) 
 {
-  LEDS.leds[index] = color;
+  if(index<NUM_LEDS)
+    LEDS.leds[index] = color;
 }
 
-void leds_set_color_rgb(int index, uint32_t r, uint32_t g, uint32_t b) 
+uint32_t leds_get_color_raw(uint32_t index) 
 {
-  r=MIN(255, r);
-  g=MIN(255, g);
-  b=MIN(255, b);
-  LEDS.leds[index] = LED_RGB(r,g,b);
+  if(index<NUM_LEDS)
+    return LEDS.leds[index];
+  return 0;
 }
 
-void leds_add_color_rgb(int index, uint32_t ra, uint32_t ga, uint32_t ba) 
+void leds_set_color_rgb(uint32_t index, uint32_t r, uint32_t g, uint32_t b) 
 {
-      uint32_t r, g, b, c;
-      c=leds_get_color_raw(index);
-      r=R(c)+ra;
-      g=G(c)+ga;
-      b=B(c)+ba;
-      leds_set_color_rgb(index,r,g,b);
+  if(index<NUM_LEDS)
+  {
+    r=MIN(255, r);
+    g=MIN(255, g);
+    b=MIN(255, b);
+    LEDS.leds[index] = LED_RGB(r,g,b);
+  }
 }
 
-uint32_t leds_get_color_raw(int index)
+void leds_add_color_rgb(uint32_t index, uint32_t ra, uint32_t ga, uint32_t ba) 
 {
-  return LEDS.leds[index];
+  if(index<NUM_LEDS)
+  {
+    uint32_t r, g, b, c;
+    c=leds_get_color_raw(index);
+    r=R(c)+ra;
+    g=G(c)+ga;
+    b=B(c)+ba;
+    leds_set_color_rgb(index,r,g,b);
+  }
 }
 
 void leds_update() 

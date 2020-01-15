@@ -1,6 +1,6 @@
 #pragma once
 
-#define NNC_FW_VERSION "3.0.a"
+#define NNC_FW_VERSION "3.1.a"
 
 #define NUM_LEDS 10
 
