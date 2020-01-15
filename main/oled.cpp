@@ -115,6 +115,11 @@ void oled_drawVLine(lcdint_t x1, lcdint_t y1, lcdint_t y2)
     oled_engine.canvas.drawVLine(x1, y1, y2);
 }
 
+void oled_fillRect(lcdint_t x1, lcdint_t y1, lcdint_t x2, lcdint_t y2)
+{
+    oled_engine.canvas.fillRect(x1, y1, x2, y2);
+}
+
 void oled_refresh(void){
     oled_engine.display();
 }

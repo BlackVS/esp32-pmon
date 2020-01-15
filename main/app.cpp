@@ -96,5 +96,5 @@ void app_main()
   //console_task("pmon -c 1 --start");
   //console_task();
   //console_task("pmon -c 1 --start", true);//run startup if present
-  console_task("radar -c 0 --start", true);//run startup if present
+  console_task("radar -c 0 -o hist --start", true);//run startup if present
 }

@@ -31,7 +31,7 @@ void oled_printf_refresh(uint8_t x, uint8_t y, EFontStyle style, const char* for
     
 void oled_drawHLine(lcdint_t x1, lcdint_t y1, lcdint_t x2);
 void oled_drawVLine(lcdint_t x1, lcdint_t y1, lcdint_t y2);
-
+void oled_fillRect(lcdint_t x1, lcdint_t y1, lcdint_t x2, lcdint_t y2);
 void oled_refresh(void);//to show buffered
 //setTextSize
 

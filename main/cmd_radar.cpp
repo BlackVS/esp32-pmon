@@ -4,7 +4,13 @@ static const char *TAG = __FILE__;
 
 CRadarTask radar("Radar", 8192, 5, &pool_wifi_tasks);
 
-CPacketsBuffer radar_packets(128);
+
+#define RSSI_MIN -90
+#define RSSI_MAX -50
+#define RSSI_K_FADE 0.9f
+
+CPacketsBuffer radar_timeseries(128);
+PACKET_STAT    radar_hist[WIFI_MAX_CH];
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -18,6 +24,7 @@ static struct {
     struct arg_lit *targets;
     struct arg_str *mac;
     struct arg_rex *type;
+    struct arg_rex *oledmode;
     struct arg_end *end;
 } _radar_args;
 
@@ -30,6 +37,7 @@ void register_cmd_radar(void)
     _radar_args.targets = arg_lit0("t", "targets", "Monitor selected targets");
     _radar_args.mac     = arg_str0("m", "mac", "<AA:BB:CC:DD:EE:FF>", "Monitor target with specified mac address");
     _radar_args.type    = arg_rex0(NULL, NULL, "all|deauth", NULL, REG_ICASE, NULL);
+    _radar_args.oledmode= arg_rex0("o", "oled", "none|time|hist", "OLED mode", REG_ICASE, NULL);
     _radar_args.end = arg_end(1);
     const esp_console_cmd_t radar_cmd = {
         .command = "radar",
@@ -55,12 +63,12 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
 {
     wifi_promiscuous_pkt_t* pr_pkt = (wifi_promiscuous_pkt_t*)buf;
     wifi_pkt_rx_ctrl_t ctrl = (wifi_pkt_rx_ctrl_t)pr_pkt->rx_ctrl;
-    wifi_ieee80211_packet_t* packet = (wifi_ieee80211_packet_t*) &pr_pkt->payload;
-    wifi_header_frame_control_t *frame_ctrl = (wifi_header_frame_control_t*)&packet->hdr.frame_ctrl;
+    //wifi_ieee80211_packet_t* packet = (wifi_ieee80211_packet_t*) &pr_pkt->payload;
+    //wifi_header_frame_control_t *frame_ctrl = (wifi_header_frame_control_t*)&packet->hdr.frame_ctrl;
 
-    uint8_t p_type    = frame_ctrl->type;
-    uint8_t p_subtype = frame_ctrl->subtype;
-    uint32_t sig_length = ctrl.sig_len;
+    // uint8_t p_type    = frame_ctrl->type;
+    // uint8_t p_subtype = frame_ctrl->subtype;
+    // uint32_t sig_length = ctrl.sig_len;
 
 
     // if (type == WIFI_PKT_MGMT && (pkt->payload[0] == 0xA0 || pkt->payload[0] == 0xC0 )) 
@@ -100,13 +108,19 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
     if(bOk) {
         pr_pckt_counter++;
         pr_rssi_sum += ctrl.rssi;
+        pr_rssi_avg=-100;
         if(pr_pckt_counter){
             pr_rssi_avg=pr_rssi_sum/pr_pckt_counter;
+        }
+        if(ctrl.channel>0&&ctrl.channel<=WIFI_MAX_CH)
+        {
+            int v=-RSSI_MIN+MIN(RSSI_MAX, MAX(RSSI_MIN, pr_rssi_avg));
+            radar_hist[ctrl.channel].rssi_avg=v;
         }
     }
 }
 
-void radar_oled_draw()
+void radar_oled_rssi()
 {
     //if (!engine.nextFrame()) 
     //    return;
@@ -135,18 +149,18 @@ void radar_oled_draw()
     oled_drawHLine(0, yt-2, 127);
     oled_drawHLine(0, yb  , 127);
 
-    int32_t vmax=radar_packets.get_max_pckt_rssi();
+    int32_t vmax=radar_timeseries.get_max_pckt_rssi();
     vmax=MAX(-50,vmax);
     //oled_print(58, 0, vmax, STYLE_BOLD);
     vmax+=100;
 
-    int32_t vavg=radar_packets.get_avg_pckt_rssi();
+    int32_t vavg=radar_timeseries.get_avg_pckt_rssi();
     //oled_print(58, 56, vavg, STYLE_BOLD);
     vavg+=100;
 
     if(vmax!=0){
-        for(int i=0; i<radar_packets.len(); i++ ){
-            int32_t v = radar_packets.get(i).rssi_avg;
+        for(int i=0; i<radar_timeseries.len(); i++ ){
+            int32_t v = radar_timeseries.get(i).rssi_avg;
             if(v==0) continue;
             v+=100;
             int32_t dy = (v*yh)/vmax;
@@ -157,6 +171,34 @@ void radar_oled_draw()
     oled_refresh();
 }
 
+void radar_oled_channels()
+{
+    //if (!engine.nextFrame()) 
+    //    return;
+    oled_clear();
+
+    int32_t yt = 10;
+    int32_t yb = 52;
+    int32_t yh = yb-yt+1;
+    oled_drawHLine(0, yb  , 127);
+
+    int xbar=8;
+    int xstep=9;
+    for(int c=1; c<=WIFI_MAX_CH; c++)
+    {
+        int v=radar_hist[c-1].rssi_avg;
+        v=(yh*v)/(RSSI_MAX-RSSI_MIN);
+        int x1=1+(c-1)*xstep;
+        int x2=x1+xbar-1;
+        int y1=yb;
+        int y2=yb-v;
+        oled_fillRect(x1, y1, x2, y2);
+        oled_printf(x1, 56, STYLE_NORMAL, "%c", (c<10) ? ('0'+c) : ('A'+c-10) );
+    }
+
+    oled_refresh();
+}
+
 esp_err_t CRadarTask::starting(void) 
 {
     pr_deauths=0; 
@@ -164,7 +206,7 @@ esp_err_t CRadarTask::starting(void)
     pr_rssi_sum=0;
     pr_rssi_avg=-100;
     lastDrawTime=0;
-    radar_packets.clear();
+    radar_timeseries.clear();
     starttime=channel_starttime=millis();
     return ESP_OK;
 }
@@ -176,6 +218,9 @@ bool CRadarTask::execute(void)
     if ( channel_auto && currentTime >= channel_starttime + channel_dur ) 
     {
         WiFi.set_channel(WiFi.get_channel()+1, true);
+        if(WiFi.get_channel()==1) 
+            for(int c=0; c<WIFI_MAX_CH; c++)
+                radar_hist[c].rssi_avg=int(radar_hist[c].rssi_avg*RSSI_K_FADE);
         channel_starttime=millis();
         //oled_printf_refresh(0,24,STYLE_NORMAL,"Channel: %i", WiFi.get_channel());
         pr_pckt_counter = 0;
@@ -184,23 +229,36 @@ bool CRadarTask::execute(void)
         pr_rssi_avg = -100;
     }
 
-    if ( currentTime - lastDrawTime >= oled_refresh_dur ) 
+    if ( radar.oledmode!=RADAR_OLED_MODE_NONE ) 
     {
-        lastDrawTime = currentTime;
-        PACKET_STAT packet;
-        packet.pckt_counter=pr_pckt_counter;
-        packet.rssi_avg    =pr_rssi_avg;
-        packet.pr_deauths  =0;//not use here
-        radar_packets.add(packet);
-    
-        //////////////////////////////
-        //OLED always
-        radar_oled_draw();
-
-        //ALARM
-        //leds_alarm_set(pr_deauths>=_death_alarm_thresh);
-
-        lastDrawTime = currentTime;
+        if( currentTime - lastDrawTime >= oled_refresh_dur )
+        {
+            lastDrawTime = currentTime;
+            PACKET_STAT packet;
+            packet.pckt_counter=pr_pckt_counter;
+            packet.rssi_avg    =pr_rssi_avg;
+            packet.pr_deauths  =0;//not use here
+            radar_timeseries.add(packet);
+        
+            //////////////////////////////
+            switch(radar.oledmode){
+                case RADAR_OLED_MODE_TIME:
+                    radar_oled_rssi();
+                    break;
+                case RADAR_OLED_MODE_HIST:
+                    radar_oled_channels();
+                    break;
+                default:
+                    break;
+            }
+            lastDrawTime = currentTime;
+        }
+    } else {
+        if(!radar.oledcleared){
+            oled_clear();
+            oled_refresh();
+            radar.oledcleared=true;
+        }
     }
 
     return true;
@@ -227,7 +285,7 @@ esp_err_t CRadarTask::init(void)
         channel_auto  = false;
         WiFi.set_channel(channel);
     }
-    oled_printf_refresh(0,24,STYLE_NORMAL,"Channel: %i", WiFi.get_channel());
+    memset(radar_hist,0,sizeof(radar_hist));
     WiFi.set_promiscuous_callback(radar_sniffer_callback);
     WiFi.set_mode(WiFi_MODE_PROMISCUOUS);
     //WiFi.set_event_handler(scan_events_callback); - maintained via pool
@@ -253,6 +311,25 @@ static int do_radar_cmd(int argc, char **argv)
         return 0;
     }
 
+    // --oledmode
+    if(_radar_args.oledmode->count)
+    {
+        const char* oledmode=_radar_args.oledmode->sval[0];
+        if(strcmp(oledmode,"none")==0){
+            radar.set_oledMode(RADAR_OLED_MODE_NONE);
+        } else
+        if(strcmp(oledmode,"hist")==0){
+            radar.set_oledMode(RADAR_OLED_MODE_HIST);
+        } else
+        if(strcmp(oledmode,"time")==0){
+            radar.set_oledMode(RADAR_OLED_MODE_TIME);
+        } else
+        {
+            printf("Wrong parameter: %s\n", oledmode);
+            return 0;
+        }
+    }
+
     // --channel
     if (_radar_args.channel->count) 
     {
@@ -270,3 +347,23 @@ static int do_radar_cmd(int argc, char **argv)
     return 0;
 }
 
+void CRadarTask::set_oledMode(RADAR_OLED_MODE m)
+{
+    switch(m){
+        case RADAR_OLED_MODE_TIME:
+            channel_dur = 500;
+            oled_refresh_dur = 250;
+            break;
+        case RADAR_OLED_MODE_HIST:
+            channel_dur = 100;
+            oled_refresh_dur = 500;
+            break;
+        default:
+            channel_dur = 100;
+            oled_refresh_dur = 500;
+            oledcleared=false;
+            break;
+    }
+    oledmode=m;
+
+}
