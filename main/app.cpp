@@ -93,7 +93,7 @@ esp_log_level_set("*", ESP_LOG_WARN);
   leds_alarm_set(false);
   
   //console_task();
-  //console_task("pmon -c 1 --start", true);//run startup if present
+  console_task("pmon -c 1 --start", true);//run startup if present
   //console_task("radar -c 0 -o hist --start", true);//run startup if present
-  console_task("radar -c 0 -o hist -p deauth --start", true);//run startup if present
+  //console_task("radar -c 0 -o hist -p deauth --start", true);//run startup if present
 }

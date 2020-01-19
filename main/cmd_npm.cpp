@@ -151,10 +151,10 @@ static esp_err_t validate_image_header(esp_app_desc_t *new_app_info)
         ESP_LOGI(TAG, "Running firmware version: %s", running_app_info.version);
     }
 
-    if (memcmp(new_app_info->version, running_app_info.version, sizeof(new_app_info->version)) == 0) {
-        ESP_LOGW(TAG, "Current running version is the same as a new. We will not continue the update.");
-        return ESP_FAIL;
-    }
+    // if (memcmp(new_app_info->version, running_app_info.version, sizeof(new_app_info->version)) == 0) {
+    //     ESP_LOGW(TAG, "Current running version is the same as a new. We will not continue the update.");
+    //     return ESP_FAIL;
+    // }
     return ESP_OK;
 }
 
