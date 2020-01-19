@@ -48,8 +48,8 @@ void app_main()
   console_init();
 
 //  esp_log_level_set("*", ESP_LOG_NONE);
-//esp_log_level_set("*", ESP_LOG_DEBUG);
-  esp_log_level_set("*", ESP_LOG_WARN);
+// esp_log_level_set("*", ESP_LOG_DEBUG);
+esp_log_level_set("*", ESP_LOG_WARN);
   
 
   printf(LOG_COLOR_W
