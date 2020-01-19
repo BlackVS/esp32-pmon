@@ -84,9 +84,9 @@ esp_err_t CJoinTask::_start_internal(void)
     tcpip_adapter_ip_info_t ip_info;
     if(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info) == 0)
     {
-      oled_printf_refresh(0,16,STYLE_NORMAL,"  IP: %s", IP2STR(&ip_info.ip));
-      oled_printf_refresh(0,24,STYLE_NORMAL,"MASK: %s", IP2STR(&ip_info.netmask));
-      oled_printf_refresh(0,32,STYLE_NORMAL,"  GW: %s", IP2STR(&ip_info.gw));
+      oled_printf_refresh(0,16,STYLE_NORMAL,"  IP: %d.%d.%d.%d", IP2STR(&ip_info.ip));
+      oled_printf_refresh(0,24,STYLE_NORMAL,"MASK: %d.%d.%d.%d", IP2STR(&ip_info.netmask));
+      oled_printf_refresh(0,32,STYLE_NORMAL,"  GW: %d.%d.%d.%d", IP2STR(&ip_info.gw));
     }
 
   } else {

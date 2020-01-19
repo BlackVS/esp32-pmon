@@ -84,9 +84,9 @@ esp_err_t npm_load_list(void)
   ARRSTR purls;
   int pcnt=strsplit(data,purls);
   if(pcnt){
-    //printf("%i packets available:\n",pcnt);
+    printf("%i packets available:\n",pcnt);
     for(int i=0;i<pcnt;i++){
-      //printf("%i: %s\n",i,purls[i].c_str());
+      printf("Reading package : %i\n",i);
       std::string purl=purls[i];
       //1. read title
       std::string ptitle=purl+"title.txt";
