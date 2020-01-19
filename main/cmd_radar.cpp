@@ -1,6 +1,6 @@
 #include "app.h"
 
-static const char *TAG = __FILE__;
+//static const char *TAG = __FILE__;
 
 CRadarTask radar("Radar", 8192, 5, &pool_wifi_tasks);
 
@@ -66,7 +66,7 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
     wifi_ieee80211_packet_t* packet = (wifi_ieee80211_packet_t*) &pr_pkt->payload;
     wifi_header_frame_control_t *frame_ctrl = (wifi_header_frame_control_t*)&packet->hdr.frame_ctrl;
 
-    uint8_t p_type    = frame_ctrl->type;
+    //uint8_t p_type    = frame_ctrl->type;
     uint8_t p_subtype = frame_ctrl->subtype;
 
     mac_t mac_from = packet->hdr.mac_from;

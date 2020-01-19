@@ -3,14 +3,6 @@
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-#ifndef MAX
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#endif
-
-#ifndef MIN
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#endif
-
 typedef std::vector<std::string> ARRSTR;
 int          strsplit(const std::string& s, ARRSTR& data, bool bSkipComments=true);
 std::string& strltrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");

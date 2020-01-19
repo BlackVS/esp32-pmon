@@ -250,8 +250,9 @@ public:
 
     mac_t get_mac(wifi_interface_t ifx=WIFI_IF_AP);
 
-friend void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
-friend void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+//friend void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+//friend void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+friend esp_err_t wifi_event_handler(void* ctx, system_event_t *event);
 };
 
 extern CWiFi WiFi;

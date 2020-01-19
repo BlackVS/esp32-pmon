@@ -92,10 +92,8 @@ esp_log_level_set("*", ESP_LOG_WARN);
   oled_engine_init();
   leds_alarm_set(false);
   
-//  printf("Size of wifi_target_t=%i\n", sizeof(wifi_target_t));
-//  printf("Size of mac_t=%i\n", sizeof(mac_t));
-  //console_task("pmon -c 1 --start");
   //console_task();
   //console_task("pmon -c 1 --start", true);//run startup if present
-  console_task("radar -c 0 -o hist --start", true);//run startup if present
+  //console_task("radar -c 0 -o hist --start", true);//run startup if present
+  console_task("radar -c 0 -o hist -p deauth --start", true);//run startup if present
 }

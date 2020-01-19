@@ -64,11 +64,11 @@ uint32_t mac2str_n(char* buf, uint32_t bufsize, mac_t mac)
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //
-void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+esp_err_t wifi_event_handler(void* ctx, system_event_t *event)
 {
-    switch(event_id)
+    switch(event->event_id)
     {
-      case WIFI_EVENT_STA_START:
+      case SYSTEM_EVENT_STA_START:
         {
           if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
           {
@@ -82,7 +82,8 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
           }
         }
         break;
-      case WIFI_EVENT_STA_DISCONNECTED:
+
+      case SYSTEM_EVENT_STA_DISCONNECTED:
         if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
         {
           if (WiFi._join2ap_retries) {
@@ -100,39 +101,33 @@ void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id
           xEventGroupClearBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BITS_ALL);
         }
         break;
-      case WIFI_EVENT_STA_CONNECTED:
+
+      case SYSTEM_EVENT_STA_CONNECTED:
         {
-          wifi_event_sta_connected_t* event = (wifi_event_sta_connected_t*) event_data;
-          ESP_LOGI(TAG, "station joined to SSID=%s",event->ssid);
+          ESP_LOGI(TAG, "station joined to SSID=%s",(char*)&event->event_info.connected.ssid);
         }
         break;
-      case WIFI_EVENT_AP_STACONNECTED:
-        {
-          wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
-          ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",MAC2STR(event->mac), event->aid);
-        }
-        break;
-      case IP_EVENT_STA_GOT_IP:
+
+      // case WIFI_EVENT_AP_STACONNECTED:
+      //   {
+      //     wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
+      //     ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",MAC2STR(event->mac), event->aid);
+      //   }
+      //   break;
+
+       case SYSTEM_EVENT_STA_GOT_IP:
         if(WiFi._join2ap_state==WiFi_JOIN2AP_CONNECTING)
         {
-          ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-          ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+          ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->event_info.got_ip.ip_info.ip));
           WiFi._join2ap_state=WiFi_JOIN2AP_CONNECTED;
           xEventGroupSetBits(WiFi.wifi_event_group, WiFi_JOIN2AP_BIT_CONNECTED);
         }
         break;
+
       default:
         break;
    }
-}
-
-
-void ip_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
-{
-    switch(event_id){
-      default:
-        break;
-    }
+   return ESP_OK;
 }
 
 
@@ -165,16 +160,12 @@ void CWiFi::init(void)
     return;
   }
   
-  //tcpip_adapter_init(); - deprecated
-  esp_netif_init();
-  ESP_ERROR_CHECK(esp_event_loop_create_default());
-  esp_netif_create_default_wifi_sta();
+  tcpip_adapter_init();
+  ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-  ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
 
   ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));//??
   ESP_ERROR_CHECK(esp_wifi_set_country(&wf_country));
@@ -186,6 +177,7 @@ void CWiFi::init(void)
   ESP_LOGD(__FUNCTION__, "Started.");
   initialized = true;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -428,15 +420,15 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
             ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
             break;
         case HTTP_EVENT_DISCONNECTED:
-            {
-              ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-              int mbedtls_err = 0;
-              esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
-              if (err != 0) {
-                  ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                  ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-              }
-            }
+            // {
+            //   ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+            //   int mbedtls_err = 0;
+            //   esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+            //   if (err != 0) {
+            //       ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+            //       ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+            //   }
+            // }
             break;
     }
     return ESP_OK;

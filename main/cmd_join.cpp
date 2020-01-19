@@ -81,18 +81,14 @@ esp_err_t CJoinTask::_start_internal(void)
     oled_printf_refresh(0,0,STYLE_NORMAL,"Connected to AP!");
     oled_printf_refresh(0,8,STYLE_NORMAL,"SSID: %s", ssid.c_str());
     /* IP Addr assigned to STA */
-    esp_netif_ip_info_t ip_info;
-    esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info);
+    tcpip_adapter_ip_info_t ip_info;
+    if(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info) == 0)
+    {
+      oled_printf_refresh(0,16,STYLE_NORMAL,"  IP: %s", IP2STR(&ip_info.ip));
+      oled_printf_refresh(0,24,STYLE_NORMAL,"MASK: %s", IP2STR(&ip_info.netmask));
+      oled_printf_refresh(0,32,STYLE_NORMAL,"  GW: %s", IP2STR(&ip_info.gw));
+    }
 
-    char buf[16];
-    esp_ip4addr_ntoa(&ip_info.ip, buf, sizeof(buf));
-    oled_printf_refresh(0,16,STYLE_NORMAL,"  IP: %s", buf);
-
-    esp_ip4addr_ntoa(&ip_info.netmask, buf, sizeof(buf));
-    oled_printf_refresh(0,24,STYLE_NORMAL,"MASK: %s", buf);
-
-    esp_ip4addr_ntoa(&ip_info.gw, buf, sizeof(buf));
-    oled_printf_refresh(0,32,STYLE_NORMAL,"  GW: %s", buf);
   } else {
     oled_printf_refresh(0,0,STYLE_NORMAL,"Failed to connected to AP!");
     oled_printf_refresh(0,8,STYLE_NORMAL," SSID: %s", ssid.c_str());

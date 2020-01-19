@@ -1,13 +1,13 @@
 #pragma once
 
 #define CONFIG_STORE_HISTORY 1
-//#define CONFIG_JTAG_ENABLED
+#define CONFIG_JTAG_ENABLED
 
 #define REG_EXTENDED 1
 #define REG_ICASE (REG_EXTENDED << 1)
 
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+//#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+//#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #include <stdio.h>
 //#include <string.h>
@@ -37,6 +37,7 @@ extern "C" {
 #endif
 
 #include "esp_wifi.h"
+#include "esp_event_loop.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/err.h"
 

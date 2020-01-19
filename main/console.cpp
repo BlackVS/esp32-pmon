@@ -19,10 +19,10 @@ void console_init(void)
 
 
     /* Install UART driver for interrupt-driven reads and writes */
-    ESP_ERROR_CHECK( uart_driver_install((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM, 256, 0, 0, NULL, 0) );
+    ESP_ERROR_CHECK( uart_driver_install((uart_port_t)CONFIG_CONSOLE_UART_NUM, 256, 0, 0, NULL, 0) );
 
     /* Tell VFS to use UART driver */
-    esp_vfs_dev_uart_use_driver((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM);
+    esp_vfs_dev_uart_use_driver((uart_port_t)CONFIG_CONSOLE_UART_NUM);
 
     /* Initialize the console */
     esp_console_config_t console_config = {

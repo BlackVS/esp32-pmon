@@ -191,15 +191,15 @@ esp_err_t _http_npm_event_handler(esp_http_client_event_t *evt)
             ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
             break;
         case HTTP_EVENT_DISCONNECTED:
-            {
-              ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-              int mbedtls_err = 0;
-              esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
-              if (err != 0) {
-                  ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                  ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-              }
-            }
+            // {
+            //   ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+            //   int mbedtls_err = 0;
+            //   esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+            //   if (err != 0) {
+            //       ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+            //       ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+            //   }
+            // }
             break;
     }
     return ESP_OK;
@@ -271,10 +271,10 @@ esp_err_t npm_packet_load(int id)
         }
     }
 
-    if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
-        // the OTA image was not completely received and user can customise the response to this situation.
-        ESP_LOGE(TAG, "Complete data was not received.");
-    }
+    // if (esp_https_ota_is_complete_data_received(https_ota_handle) != true) {
+    //     // the OTA image was not completely received and user can customise the response to this situation.
+    //     ESP_LOGE(TAG, "Complete data was not received.");
+    // }
 
     esp_err_t ota_finish_err = esp_https_ota_finish(https_ota_handle);
     if ((err == ESP_OK) && (ota_finish_err == ESP_OK)) {
