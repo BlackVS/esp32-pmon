@@ -6,4 +6,4 @@
 PROJECT_NAME := nnc-badge-pmon
 #LDFLAGS += -z muldefs
 include $(IDF_PATH)/make/project.mk
-
+CFLAGS += -fno-inline-functions
