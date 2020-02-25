@@ -19,7 +19,10 @@ idf_component_register(SRCS
                             cmd_targets.cpp
                             cmd_join.cpp
                             cmd_npm.cpp
+                            cmd_startup.cpp
+                            cmd_radar.cpp
                             task.cpp
+                            strings.cpp
                         INCLUDE_DIRS 
                             "."
                     )

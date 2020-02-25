@@ -1,7 +1,7 @@
 #pragma once
 
 #define CONFIG_STORE_HISTORY 1
-#define CONFIG_JTAG_ENABLED
+//#define CONFIG_JTAG_ENABLED
 
 #define REG_EXTENDED 1
 #define REG_ICASE (REG_EXTENDED << 1)
@@ -10,11 +10,11 @@
 //#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 #include <stdio.h>
-//#include <string.h>
+#include <vector>
+#include <string>
 #include <cstring>
 #include <string>
 #include <stdlib.h>
-#include <vector>
 #include <map>
 #include <iostream>
 #include <sstream>
