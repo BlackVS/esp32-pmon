@@ -71,6 +71,7 @@ void register_cmds()
   register_cmd_deauth();
   register_cmd_scan();
   register_cmd_radar();
+  register_cmd_ble();
 }
 
 

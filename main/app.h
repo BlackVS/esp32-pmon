@@ -3,6 +3,7 @@
 #define CONFIG_STORE_HISTORY 1
 //#define CONFIG_JTAG_ENABLED
 
+
 #define REG_EXTENDED 1
 #define REG_ICASE (REG_EXTENDED << 1)
 
@@ -11,9 +12,8 @@
 
 #include <stdio.h>
 #include <vector>
-#include <string>
+//#include <string>
 #include <cstring>
-#include <string>
 #include <stdlib.h>
 #include <map>
 #include <iostream>
@@ -30,6 +30,11 @@
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_ota_ops.h"
+
+#include <esp_bt.h>
+#include <esp_bt_main.h>
+#include <esp_gap_ble_api.h>
+#include <esp_blufi_api.h>
 
 ///// netif not supports C++ compiler yet
 #ifdef __cplusplus

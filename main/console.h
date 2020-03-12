@@ -20,7 +20,7 @@
 #include "cmd_npm.h"
 #include "cmd_startup.h"
 #include "cmd_radar.h"
-
+#include "cmd_ble.h"
 
 #define CONSOLE_HISTORY_PATH "/data/history.txt"
 

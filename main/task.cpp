@@ -24,7 +24,7 @@ extern "C" void _task_callback(void *pvParameters)
         {
             break;
         }
-        vTaskDelay(10);//via params
+        vTaskDelay(task->task_delay);
     }
     task->finished();
 
@@ -42,18 +42,24 @@ esp_err_t CTaskThread::_start_internal(void)
         ESP_LOGW(TAG, "Task already running");
         return ESP_OK;
     }
-    init();
-    BaseType_t ret = xTaskCreate( task_func, 
-                                  task_title, 
-                                  task_stack_size,
-                                  this, 
-                                  task_priority, 
-                                  &task_handle);
-    if(ret != pdTRUE)
+    esp_err_t status=init();
+    if(status==ESP_OK)
     {
-        task_handle=NULL;
-        ESP_LOGD(__FUNCTION__, "FAILED to start!!!");
-        return ESP_FAIL;
+        BaseType_t ret = xTaskCreate( task_func, 
+                                    task_title, 
+                                    task_stack_size,
+                                    this, 
+                                    task_priority, 
+                                    &task_handle);
+        if(ret != pdTRUE)
+        {
+            task_handle=NULL;
+            ESP_LOGD(__FUNCTION__, "FAILED to start!!!");
+            return ESP_FAIL;
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to init, aborting!");
+        return status;
     }
     return ESP_OK;
 }

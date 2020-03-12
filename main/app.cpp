@@ -48,7 +48,7 @@ void app_main()
   console_init();
 
 //  esp_log_level_set("*", ESP_LOG_NONE);
-// esp_log_level_set("*", ESP_LOG_DEBUG);
+//esp_log_level_set("*", ESP_LOG_DEBUG);
 esp_log_level_set("*", ESP_LOG_WARN);
   
 
@@ -92,6 +92,8 @@ esp_log_level_set("*", ESP_LOG_WARN);
   oled_engine_init();
   leds_alarm_set(false);
   
+  //xTaskCreatePinnedToCore(&bt_task, "btTask", 2048, NULL, 5, NULL, 0);
+
   //console_task();
   console_task("pmon -c 1 --start", true);//run startup if present
   //console_task("radar -c 0 -o hist --start", true);//run startup if present

@@ -21,6 +21,7 @@ idf_component_register(SRCS
                             cmd_npm.cpp
                             cmd_startup.cpp
                             cmd_radar.cpp
+                            cmd_ble.cpp
                             task.cpp
                             strings.cpp
                         INCLUDE_DIRS 

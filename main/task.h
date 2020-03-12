@@ -82,6 +82,9 @@ class CTaskThread : public ITask
         SemaphoreHandle_t sem_task_over;
         bool              task_running;
 
+    protected:
+        TickType_t      task_delay;
+
     public:
         CTaskThread(const char* title, uint32_t stack_size=1024*4, uint32_t task_prior=5, CTaskPool* pool = NULL)
         {
@@ -93,6 +96,7 @@ class CTaskThread : public ITask
             task_running=false;
             task_pool=pool;
             task_id = -1;
+            task_delay = 10;
             //if(task_pool) - defferred adding to pool in "start" method
             //    task_id=task_pool->task_add(this); due can't use "this" in constructor - object not finally constructed yet
 
