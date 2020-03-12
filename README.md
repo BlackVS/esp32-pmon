@@ -1,16 +1,15 @@
 # NNC Badge 2019 based packet monitor
 
 At power on packet monitor runs on channel 1.
-
 To switch channels press sensor key on badge.
-
 In packet monitor mode deauth attack detector is enabled.
-
 Serial console supported.
+Run help in comsole to get list of commands.
 
-Run help in comsole to get list of commands:
-
-
+Versions:
+* master - uses ESP-IDF SDK 4.x dev version. Not compatible with SDK stable versions. Frozen.
+* 3.1 - uses ESP-IDF SDK 3.1 stable. Frozen.
+* 4.0 - uses ESP-IDF SDK 4.0 stable. Active.
 ```
 help 
   Print the list of registered commands
