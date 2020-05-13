@@ -1,6 +1,13 @@
 #pragma once
 
-#define NNC_FW_VERSION "3.1.a"
+#define NNC_FW_VERSION "4.1"
+
+//#define CONFIG_JTAG_ENABLED
+
+#define MEGA_DEAUTHDET
+//#define MEGA_PMON
+//#define MEGA_RADAR
+
 
 #define NUM_LEDS 10
 

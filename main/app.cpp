@@ -95,7 +95,15 @@ esp_log_level_set("*", ESP_LOG_WARN);
   //xTaskCreatePinnedToCore(&bt_task, "btTask", 2048, NULL, 5, NULL, 0);
 
   //console_task();
+  #ifdef MEGA_PMON
   console_task("pmon -c 1 --start", true);//run startup if present
-  //console_task("radar -c 0 -o hist --start", true);//run startup if present
-  //console_task("radar -c 0 -o hist -p deauth --start", true);//run startup if present
+  #endif 
+
+  #ifdef MEGA_RADAR
+  console_task("radar -c 0 -o hist --start", true);//run startup if present
+  #endif
+
+  #ifdef MEGA_DEAUTHDET
+  console_task("radar -c 0 -o hist -p deauth --start", true);//run startup if present
+  #endif
 }

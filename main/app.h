@@ -1,7 +1,7 @@
 #pragma once
 
 #define CONFIG_STORE_HISTORY 1
-//#define CONFIG_JTAG_ENABLED
+
 
 
 #define REG_EXTENDED 1
