@@ -1,7 +1,7 @@
 #include "app.h"
 
 static bool touchpad_enabled = false;
-
+ 
 static const char *TAG = "TOUCHPAD";
 // int is supposed to be atomic
 static TOUCHPAD_STATE tp_last_state = TOUCHPAD_STATE_OFF;

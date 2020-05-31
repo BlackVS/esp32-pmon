@@ -160,7 +160,7 @@ extern "C" void scan_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t typ
     mac_t mac_from = packet->hdr.mac_from;
 
     //snif radio's MACs
-    bool is_bad = ctrl.channel==0 || ctrl.rssi>0;
+    bool is_bad = ctrl.rx_state!=0 || ctrl.channel==0 || ctrl.rssi>0;
     {
         if(is_bad&&sniffer.f_verbose){
             printf("\nBAD: %s => %s l=%i t=%i s=%i\n", 

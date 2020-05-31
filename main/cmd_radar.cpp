@@ -107,7 +107,7 @@ extern "C" void radar_sniffer_callback(void* buf, wifi_promiscuous_pkt_type_t ty
     // mac_t mac_to   = packet->hdr.mac_to;
     //snif radio's MACs
 
-    if(ctrl.channel==0 || ctrl.rssi>0)
+    if(ctrl.rx_state!=0 || ctrl.channel==0 || ctrl.rssi>0)
         return;//
 
     if(radar.mac.is_valid())

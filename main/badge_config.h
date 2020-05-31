@@ -4,8 +4,8 @@
 
 //#define CONFIG_JTAG_ENABLED
 
-#define MEGA_DEAUTHDET
-//#define MEGA_PMON
+//#define MEGA_DEAUTHDET
+#define MEGA_PMON
 //#define MEGA_RADAR
 
 
